@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 2: Podman Basics | NETW 112 Containers &amp; Orchestration</title>
+<meta name="description" content="NETW 112 Week 2. Run, inspect, network and clean up containers with Podman, with a practice terminal and missions that mirror the Chapter 2 lab skills.">
+<style>:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#E9EEF1; --ink:#17212B; --muted:#4A5866;
+  --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0;
+  --signal:#7E4C00; --signal-bg:#FFF3DC; --signal-line:#D9A24A;
+  --ok:#1C6A39; --ok-bg:#E3F4E8; --bad:#A1252A; --bad-bg:#FBE6E6;
+  --term-bg:#0F161D; --term-fg:#D3DFE7; --term-dim:#8FA3B1; --term-prompt:#7FD3C9; --term-err:#FF9C9C; --term-ok:#A8E6B5;
+  --steel-a:#C7D2DA; --steel-b:#B7C4CE;
+  --sans:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem; --s7:3rem; --s8:4.5rem;
+  --measure:68ch; --radius-sm:4px; --radius:8px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0E141A; --surface:#151E27; --surface-2:#1C2833; --ink:#E2E9EF; --muted:#A3B2BF;
+    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A;
+    --signal:#F0B65C; --signal-bg:#2A2214; --signal-line:#8A6526;
+    --ok:#74D19B; --ok-bg:#15301F; --bad:#F2898C; --bad-bg:#3A1C1E;
+    --term-bg:#080C10; --steel-a:#273440; --steel-b:#22303B;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:1rem;line-height:1.55}
+a{color:var(--accent);text-underline-offset:.15em}
+a:hover{color:var(--accent-strong)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:2px}
+.skip-link{position:absolute;left:var(--s4);top:-4rem;background:var(--accent);color:var(--accent-ink);padding:var(--s3) var(--s4);z-index:100;border-radius:var(--radius-sm);font-weight:600}
+.skip-link:focus{top:var(--s4)}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+img,svg{max-width:100%}
+code{overflow-wrap:anywhere}
+pre code,pre .c{overflow-wrap:normal}
+
+/* top bar */
+.topbar{border-bottom:1px solid var(--line);background:var(--surface)}
+.topbar-inner{max-width:76rem;margin:0 auto;padding:var(--s2) var(--s4);display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;justify-content:space-between}
+.brand{font-weight:600;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;gap:var(--s2);min-height:44px}
+.brand-code{font-family:var(--mono);font-size:.85rem;background:var(--ink);color:var(--surface);padding:.1rem .4rem;border-radius:var(--radius-sm)}
+.weeknav{display:flex;gap:var(--s2);flex-wrap:wrap}
+.weeknav a,.weeknav span{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);text-decoration:none;font-size:.9rem}
+.weeknav span{color:var(--muted)}
+
+/* module masthead */
+.masthead{max-width:76rem;margin:0 auto;padding:var(--s7) var(--s4) var(--s5)}
+.masthead .weekno{font-family:var(--mono);color:var(--accent);font-size:1rem;margin:0}
+.masthead h1{font-size:clamp(2rem,5vw,3.25rem);line-height:1.08;margin:var(--s2) 0 var(--s4);letter-spacing:-.015em;font-weight:600;max-width:20ch}
+.deck{font-family:var(--serif);font-size:1.2rem;line-height:1.6;max-width:var(--measure);color:var(--muted);margin:0 0 var(--s5)}
+.meta{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s6);margin:0;padding:0}
+.meta div{min-width:9rem}
+.meta dt{font-size:.8rem;color:var(--muted)}
+.meta dd{margin:0;font-weight:600}
+.progress-wrap{margin-top:var(--s5);max-width:28rem}
+.progress-label{font-size:.85rem;color:var(--muted);display:flex;justify-content:space-between}
+.bar{height:10px;background:var(--surface-2);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* layout */
+.layout{max-width:76rem;margin:0 auto;padding:0 var(--s4) var(--s8);display:grid;grid-template-columns:1fr;gap:var(--s6)}
+@media (min-width:62rem){.layout{grid-template-columns:15rem minmax(0,1fr)}}
+.toc{font-size:.92rem}
+.toc details{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:var(--s2) var(--s3)}
+.toc summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+@media (min-width:62rem){
+  .toc{position:sticky;top:var(--s4);align-self:start;max-height:calc(100vh - 2rem);overflow:auto}
+  .toc details{border:0;background:transparent;padding:0}
+  .toc summary{pointer-events:none;list-style:none}
+  .toc summary::-webkit-details-marker{display:none}
+}
+.toc ol{list-style:none;margin:var(--s2) 0 0;padding:0;counter-reset:t}
+.toc li{counter-increment:t}
+.toc a{display:flex;gap:var(--s2);align-items:baseline;padding:var(--s2);min-height:40px;text-decoration:none;color:var(--ink);border-left:3px solid transparent}
+.toc a::before{content:counter(t);font-family:var(--mono);font-size:.8rem;color:var(--muted);min-width:1.4em}
+.toc a[aria-current="true"]{border-left-color:var(--accent);background:var(--accent-soft)}
+.toc .tick{margin-left:auto;color:var(--ok);font-weight:700}
+
+/* content */
+main{min-width:0}
+.unit{padding:var(--s6) 0 var(--s5);border-top:1px solid var(--line);scroll-margin-top:var(--s4)}
+.unit:first-child{border-top:0;padding-top:0}
+.unit>h2{font-size:clamp(1.45rem,3vw,1.9rem);line-height:1.2;margin:0 0 var(--s4);font-weight:600;letter-spacing:-.01em;display:flex;gap:var(--s3);align-items:baseline}
+.unit>h2 .n{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:500}
+.unit h3{font-size:1.15rem;margin:var(--s6) 0 var(--s2);font-weight:600}
+.prose{font-family:var(--serif);font-size:1.075rem;line-height:1.7;max-width:var(--measure)}
+.prose p,.prose ul,.prose ol{margin:0 0 var(--s4)}
+.prose li{margin-bottom:var(--s2)}
+.prose code,.inline-code{overflow-wrap:anywhere;font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:.08em .32em;border-radius:3px}
+.prose strong{font-family:var(--sans);font-weight:600;font-size:.97em}
+.objectives{max-width:var(--measure);padding-left:1.25rem;font-family:var(--serif);font-size:1.075rem;line-height:1.65}
+.objectives li{margin-bottom:var(--s2)}
+
+/* callouts */
+.callout{max-width:var(--measure);border-left:4px solid var(--accent);background:var(--surface);padding:var(--s3) var(--s4);margin:var(--s5) 0;border-radius:0 var(--radius) var(--radius) 0;font-size:.98rem}
+.callout>p{margin:0 0 var(--s2)}.callout>p:last-child{margin:0}
+.callout .label{font-weight:600;display:block;margin-bottom:var(--s1)}
+.callout.exam{border-left-color:var(--signal-line);background:var(--signal-bg)}
+.callout.exam .label{color:var(--signal)}
+.callout.warn{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.warn .label{color:var(--bad)}
+
+/* command blocks */
+.cmd{position:relative;max-width:var(--measure);margin:var(--s4) 0;background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s4);padding-right:5.5rem;font-family:var(--mono);font-size:.88rem;line-height:1.55;overflow-x:auto;white-space:pre}
+.cmd .p{color:var(--term-prompt);user-select:none}
+.cmd .o{color:var(--term-dim)}
+.copy-btn{position:absolute;top:var(--s2);right:var(--s2);min-height:36px;min-width:44px;padding:0 var(--s3);background:transparent;color:var(--term-fg);border:1px solid var(--term-dim);border-radius:var(--radius-sm);font-family:var(--sans);font-size:.8rem;cursor:pointer}
+.copy-btn:hover{border-color:var(--term-prompt);color:var(--term-prompt)}
+
+/* tables */
+.table-wrap{overflow-x:auto;max-width:100%;margin:var(--s4) 0}
+table{border-collapse:collapse;min-width:32rem;font-size:.94rem}
+th,td{text-align:left;padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;background:var(--surface-2)}
+td code{font-family:var(--mono);font-size:.86rem}
+
+/* buttons */
+.btn{min-height:44px;min-width:44px;padding:0 var(--s4);border-radius:var(--radius-sm);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:600 .95rem var(--sans);cursor:pointer}
+.btn:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.done-row{margin-top:var(--s5);display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
+.done-btn[aria-pressed="true"]{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.done-btn[aria-pressed="true"]::before{content:"✓ "}
+
+/* interactive frame */
+.lab-frame{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:var(--s5);margin:var(--s5) 0}
+.lab-frame>h3:first-child{margin-top:0}
+.hint{color:var(--muted);font-size:.92rem;max-width:var(--measure)}
+
+/* quiz */
+.quiz-q{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:var(--s4);margin:0 0 var(--s4);background:var(--surface);max-width:46rem}
+.quiz-q legend{overflow-wrap:anywhere;max-width:100%;font-weight:600;padding:0 var(--s2);font-size:1.02rem}
+.quiz-q .qn{font-family:var(--mono);color:var(--accent);margin-right:var(--s2)}
+.choice{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s2) var(--s3);min-height:44px;border-radius:var(--radius-sm);cursor:pointer}
+.choice:hover{background:var(--surface-2)}
+.choice>span{overflow-wrap:anywhere}
+.choice input{margin-top:.3rem;width:1.1rem;height:1.1rem;flex:none}
+.choice.is-right{background:var(--ok-bg)}
+.choice.is-wrong{background:var(--bad-bg)}
+.feedback{margin-top:var(--s3);font-size:.96rem}
+.feedback .verdict{font-weight:700}
+.feedback.right .verdict{color:var(--ok)}
+.feedback.wrong .verdict{color:var(--bad)}
+.quiz-summary{font-weight:600;margin:var(--s3) 0}
+
+/* lab bridge */
+.bridge{border:2px solid var(--signal-line);background:var(--signal-bg);border-radius:var(--radius);padding:var(--s5);max-width:52rem}
+.bridge h3{margin-top:0;color:var(--signal)}
+.bridge ol,.bridge ul{font-family:var(--serif);font-size:1.05rem;line-height:1.65;padding-left:1.25rem}
+.checklist{list-style:none;padding:0!important}
+.checklist li{display:flex;gap:var(--s3);align-items:flex-start;margin-bottom:var(--s2)}
+.checklist input{width:1.2rem;height:1.2rem;margin-top:.35rem;flex:none}
+
+/* footer */
+.site-foot{border-top:1px solid var(--line);background:var(--surface);font-size:.88rem;color:var(--muted)}
+.site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
+.site-foot p{margin:0 0 var(--s2);max-width:80ch}
+@media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+
+/* lifecycle */
+.states{display:flex;flex-wrap:wrap;gap:var(--s2);list-style:none;padding:0;margin:var(--s3) 0}
+.states li{padding:var(--s2) var(--s3);border:1px solid var(--line);border-radius:999px;font:500 .9rem var(--mono);color:var(--muted)}
+.states li[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.lc-actions{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0}
+.lc-actions .btn{font-family:var(--mono);font-weight:500;font-size:.88rem}
+.lc-out{min-height:4.5rem;max-width:var(--measure)}
+.lc-out code{font-family:var(--mono);background:var(--surface-2);padding:.1em .35em;border-radius:3px}
+/* terminal */
+.sim{display:grid;grid-template-columns:1fr;gap:var(--s5)}
+
+.term{background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);display:flex;flex-direction:column;min-height:26rem;max-height:34rem}
+.term-bar{display:flex;justify-content:space-between;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);border-bottom:1px solid #26323d;font:.8rem var(--mono);color:var(--term-dim)}
+.term-bar button{min-height:36px;background:transparent;color:var(--term-fg);border:1px solid var(--term-dim);border-radius:var(--radius-sm);font:.8rem var(--sans);padding:0 var(--s3);cursor:pointer}
+.term-log{flex:1;overflow:auto;padding:var(--s3) var(--s4);font:.84rem/1.5 var(--mono);white-space:pre}
+.term-log .cmdline{color:var(--term-fg)}
+.term-log .cmdline .p{color:var(--term-prompt)}
+.term-log .err{color:var(--term-err)}
+.term-log .note{color:var(--term-dim);font-style:italic;white-space:pre-wrap}
+.term-log .good{color:var(--term-ok)}
+.term-in{display:flex;align-items:center;gap:var(--s2);border-top:1px solid #26323d;padding:var(--s2) var(--s3)}
+.term-in label{color:var(--term-prompt);font:.86rem var(--mono);white-space:nowrap}
+.term-in input{flex:1;min-width:0;min-height:44px;background:transparent;border:0;color:var(--term-fg);font:.9rem var(--mono);caret-color:var(--term-prompt)}
+.term-in input:focus-visible{outline:2px solid var(--term-prompt);outline-offset:0}
+.term-in .run{min-height:44px;background:var(--term-prompt);color:var(--term-bg);border:0;border-radius:var(--radius-sm);font:600 .85rem var(--sans);padding:0 var(--s4);cursor:pointer}
+.missions h4{margin:0 0 var(--s2);font-size:1rem}
+.missions ol{list-style:none;padding:0;margin:0;counter-reset:m;display:grid;grid-template-columns:repeat(auto-fill,minmax(17rem,1fr));gap:0 var(--s5)}
+.missions li{counter-increment:m;border-bottom:1px solid var(--line);padding:var(--s3) 0;font-size:.93rem}
+.missions .mt{display:flex;gap:var(--s2);align-items:baseline}
+.missions .mt::before{content:counter(m);font:.8rem var(--mono);color:var(--muted);min-width:1.2em}
+.missions .st{margin-left:auto;font-size:.78rem;font-weight:600;white-space:nowrap;color:var(--muted)}
+.missions li.ok .st{color:var(--ok)}
+.missions li.ok .mt span:first-child{text-decoration:line-through;text-decoration-color:var(--ok)}
+.missions details{margin:var(--s1) 0 0 1.7em}
+.missions summary{cursor:pointer;color:var(--accent);font-size:.85rem;min-height:32px;display:flex;align-items:center}
+.missions code{font-family:var(--mono);font-size:.8rem;word-break:break-all}
+
+/* decoder */
+.decoder input{width:100%;min-height:44px;font:.9rem var(--mono);padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)}
+.decoder label{font-weight:600;display:block;margin-bottom:var(--s2)}
+.decoded{margin:var(--s4) 0 0;display:grid;grid-template-columns:1fr;gap:var(--s2)}
+@media (min-width:44rem){.decoded{grid-template-columns:minmax(10rem,auto) 1fr}}
+.decoded dt{font:.86rem var(--mono);background:var(--surface-2);padding:var(--s2) var(--s3);border-radius:var(--radius-sm);word-break:break-all}
+.decoded dd{margin:0 0 var(--s2);padding:var(--s2) 0;font-size:.95rem}
+.decoded dd.bad{color:var(--bad)}
+</style>
+</head>
+<body data-module="w02">
+<a href="#main" class="skip-link">Skip to main content</a>
+<div id="sr-status" class="vh" role="status" aria-live="polite"></div>
+
+<header>
+  <div class="topbar"><div class="topbar-inner">
+    <a class="brand" href="index.html"><span class="brand-code">NETW 112</span> Course home</a>
+    <nav class="weeknav" aria-label="Week navigation"><a href="week01.html">Previous: Week 1</a><a href="week03.html">Next: Week 3, container images</a></nav>
+  </div></div>
+  <div class="masthead">
+    <p class="weekno">Week 2</p>
+    <h1>Podman basics</h1>
+    <p class="deck">This week you start, inspect, connect and clean up real containers. These few commands are the ones you will type more than any others for the rest of the semester, and on the EX188 exam.</p>
+    <dl class="meta">
+      <div><dt>Red Hat course</dt><dd>DO188, Chapter 2 topics</dd></div>
+      <div><dt>Session type</dt><dd>Lab, 1 graded</dd></div>
+      <div><dt>Course outcome</dt><dd>Outcome 1</dd></div>
+      <div><dt>Time</dt><dd>About 3 hours with the lab</dd></div>
+    </dl>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Your progress this week</span><span id="progress-count">0 of 0 sections</span></div>
+      <div class="bar" id="progress" role="progressbar" aria-label="Week 2 progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Sections in this week">
+    <details open><summary>In this week</summary>
+      <ol>
+        <li><a href="#goals">Goals</a></li>
+        <li><a href="#run">Running a container</a></li>
+        <li><a href="#life">The container lifecycle</a></li>
+        <li><a href="#inside">Looking inside a container</a></li>
+        <li><a href="#net">Ports and networks</a></li>
+        <li><a href="#practice">Practice terminal</a></li>
+        <li><a href="#check">Knowledge check</a></li>
+        <li><a href="#lab">Lab bridge</a></li>
+        <li><a href="#cheat">Cheat sheet</a></li>
+      </ol>
+    </details>
+  </nav>
+
+<main id="main">
+  <section class="unit" id="goals" data-unit>
+    <h2><span class="n">1</span>Goals</h2>
+    <p class="prose">By the end of this week you should be able to:</p>
+    <ul class="objectives">
+      <li>Start containers in the foreground, in the background and interactively, with and without automatic removal.</li>
+      <li>List, stop, start, restart and remove containers, and explain each lifecycle state.</li>
+      <li>Read container logs, run commands inside a running container, copy files in and query details with <code class="inline-code">podman inspect</code>.</li>
+      <li>Publish container ports to the host, and explain the rootless rule for ports below 1024.</li>
+      <li>Create a user-defined network so containers can reach each other by name.</li>
+    </ul>
+  </section>
+
+  <section class="unit" id="run" data-unit>
+    <h2><span class="n">2</span>Running a container</h2>
+    <div class="prose">
+      <p>The workhorse command is <code>podman run</code>. In its simplest form you give it an image and, optionally, a command to run instead of the image's default:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman run registry.access.redhat.com/ubi9/ubi echo "Hello, containers"</span>
+<span class="o">Trying to pull registry.access.redhat.com/ubi9/ubi:latest...
+Getting image source signatures
+Copying blob 7c5f…  done
+Copying config 3a1b…  done
+Writing manifest to image destination
+Hello, containers</span></pre>
+    <div class="prose">
+      <p>Several things happened. Podman didn't have the image, so it pulled it from the registry. It created a container, ran <code>echo</code> inside it, printed the output and then the container exited, because its only process finished. <strong>A container lives exactly as long as its main process.</strong> That one rule explains a surprising amount of container behavior.</p>
+      <h3>Options you'll use constantly</h3>
+    </div>
+    <div class="table-wrap"><table>
+      <caption class="vh">Common podman run options</caption>
+      <thead><tr><th scope="col">Option</th><th scope="col">What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>-d</code>, <code>--detach</code></td><td>Run in the background and print the container ID. Use it for servers.</td></tr>
+        <tr><td><code>--name web</code></td><td>Give the container a name you can type. Otherwise Podman invents one such as <code>quirky_turing</code>.</td></tr>
+        <tr><td><code>-it</code></td><td>Interactive with a terminal (<code>-i</code> keeps standard input open, <code>-t</code> allocates a terminal). Use it to get a shell.</td></tr>
+        <tr><td><code>--rm</code></td><td>Remove the container automatically when it exits. Good for one-off commands.</td></tr>
+        <tr><td><code>-p 8080:8080</code></td><td>Publish a port: <em>host port</em>:<em>container port</em>.</td></tr>
+        <tr><td><code>-e NAME=value</code></td><td>Set an environment variable, the usual way to configure a containerized app.</td></tr>
+        <tr><td><code>--network app-net</code></td><td>Attach the container to a specific network.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="prose">
+      <p>Here's a typical server start. The container runs in the background and Podman prints its full ID:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d --name web -p 8080:8080 registry.access.redhat.com/ubi9/httpd-24</span>
+<span class="o">8d2f6c1e9b0a4f7d…</span>
+<span class="p">$ </span><span class="c">podman ps</span>
+<span class="o">CONTAINER ID  IMAGE                                            COMMAND               CREATED        STATUS        PORTS                   NAMES
+8d2f6c1e9b0a  registry.access.redhat.com/ubi9/httpd-24:latest  /usr/bin/run-http...  5 seconds ago  Up 5 seconds  0.0.0.0:8080->8080/tcp  web</span></pre>
+    <div class="callout warn"><span class="label">Common mistake</span>
+      <p><code>podman run -d registry.access.redhat.com/ubi9/ubi</code> appears to do nothing: <code>podman ps</code> shows no container. The image's default command is a shell, a shell with no input exits immediately, and the container exits with it. Run <code>podman ps -a</code> to see it with status <code>Exited (0)</code>. Detach only things that keep running, such as servers.</p></div>
+    <div class="lab-frame decoder">
+      <h3>Decode a podman run command</h3>
+      <p class="hint">Type or paste any <code class="inline-code">podman run</code> command to see what each part means. Try changing the example.</p>
+      <label for="dec-in">Command to decode</label>
+      <input id="dec-in" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" value="podman run -d --name web -p 8080:8080 -e TZ=America/New_York registry.access.redhat.com/ubi9/httpd-24">
+      <dl class="decoded" id="dec-out" aria-live="polite"></dl>
+    </div>
+  </section>
+
+  <section class="unit" id="life" data-unit>
+    <h2><span class="n">3</span>The container lifecycle</h2>
+    <div class="prose">
+      <p>A container moves through a small set of states. <code>podman run</code> is really two steps in one: <code>podman create</code> makes the container (allocating its writable layer and configuration) and <code>podman start</code> launches its main process.</p>
+      <ul>
+        <li><strong>Created</strong>: configured, but the process has never run.</li>
+        <li><strong>Running</strong>: the main process is alive.</li>
+        <li><strong>Paused</strong>: every process is frozen in place using the cgroup freezer. Memory is kept; nothing executes.</li>
+        <li><strong>Exited</strong>: the main process ended. The container and its writable layer still exist, so you can read its logs or start it again.</li>
+        <li><strong>Removed</strong>: gone, along with its writable layer.</li>
+      </ul>
+      <p><code>podman stop</code> asks politely: it sends <code>SIGTERM</code>, waits (10 seconds by default) and only then sends <code>SIGKILL</code>. <code>podman kill</code> sends <code>SIGKILL</code> immediately, which gives the app no chance to clean up.</p>
+    </div>
+    <div class="lab-frame">
+      <h3>Drive a container through its states</h3>
+      <p class="hint">Only the commands that make sense in the current state will work. Try the ones that don't, too, to see the error you'd get.</p>
+      <ul class="states" id="lc-states" aria-label="Container states">
+        <li data-st="none">no container</li><li data-st="created">created</li><li data-st="running">running</li><li data-st="paused">paused</li><li data-st="exited">exited</li>
+      </ul>
+      <div class="lc-actions" id="lc-actions">
+        <button type="button" class="btn ghost" data-op="create">create</button>
+        <button type="button" class="btn ghost" data-op="start">start</button>
+        <button type="button" class="btn ghost" data-op="pause">pause</button>
+        <button type="button" class="btn ghost" data-op="unpause">unpause</button>
+        <button type="button" class="btn ghost" data-op="stop">stop</button>
+        <button type="button" class="btn ghost" data-op="kill">kill</button>
+        <button type="button" class="btn ghost" data-op="rm">rm</button>
+        <button type="button" class="btn ghost" data-op="rmf">rm -f</button>
+      </div>
+      <div class="lc-out" id="lc-out" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="unit" id="inside" data-unit>
+    <h2><span class="n">4</span>Looking inside a container</h2>
+    <div class="prose">
+      <p>When a containerized app misbehaves, four commands do most of the investigating. You'll go deeper in Week 6, but you need them from day one.</p>
+      <h3>Logs</h3>
+      <p>Anything the main process writes to standard output or standard error is captured. Well-built images send their logs there instead of to files inside the container. Add <code>-f</code> to follow new lines as they arrive, and <code>--tail 20</code> to see only the end.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman logs web</span>
+<span class="p">$ </span><span class="c">podman logs -f --tail 20 web</span></pre>
+    <div class="prose">
+      <h3>Exec</h3>
+      <p><code>podman exec</code> starts an additional process inside a <em>running</em> container. It shares that container's namespaces, so it sees the same files, network and processes.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman exec web cat /etc/redhat-release</span>
+<span class="o">Red Hat Enterprise Linux release 9.4 (Plow)</span>
+<span class="p">$ </span><span class="c">podman exec -it web /bin/bash</span>
+<span class="o">bash-5.1$ whoami
+default
+bash-5.1$ exit</span></pre>
+    <p class="hint">The httpd image runs as an unprivileged user named <code class="inline-code">default</code> (UID 1001), not as root. That design choice is what lets it run on OpenShift later.</p>
+    <div class="prose">
+      <h3>Inspect</h3>
+      <p><code>podman inspect</code> prints everything Podman knows about a container or image as JSON: state, exit code, IP address, mounts, environment and more. The <code>--format</code> option takes a Go template, so you can pull out one value without scrolling through hundreds of lines.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman inspect --format '{{.State.Status}}' web</span>
+<span class="o">running</span>
+<span class="p">$ </span><span class="c">podman inspect --format '{{.NetworkSettings.IPAddress}}' web</span></pre>
+    <div class="prose">
+      <h3>Copy</h3>
+      <p><code>podman cp</code> copies files between the host and a container, in either direction. It's handy for pulling out a log file or dropping in a test page. Remember the change lives in the container's writable layer and disappears when the container is removed; you'll learn the permanent fixes (custom images and volumes) in Weeks 4 and 5.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman cp index.html web:/var/www/html/index.html</span>
+<span class="p">$ </span><span class="c">podman cp web:/etc/httpd/conf/httpd.conf .</span></pre>
+  </section>
+
+  <section class="unit" id="net" data-unit>
+    <h2><span class="n">5</span>Ports and networks</h2>
+    <div class="prose">
+      <p>A container has its own network namespace, so a server listening on port 8080 inside it is invisible from outside until you <strong>publish</strong> the port. The <code>-p</code> option maps a host port to a container port. The host side comes first:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d --name web -p 8080:8080 registry.access.redhat.com/ubi9/httpd-24</span>
+<span class="p">$ </span><span class="c">podman port web</span>
+<span class="o">8080/tcp -> 0.0.0.0:8080</span>
+<span class="p">$ </span><span class="c">curl http://localhost:8080</span></pre>
+    <div class="prose">
+      <p>The two numbers don't have to match. <code>-p 9000:8080</code> lets you reach the same server at <code>localhost:9000</code>, which is how you run two copies of one image side by side. Only one container can hold a given host port at a time.</p>
+      <h3>The rootless port rule</h3>
+      <p>By default, Linux reserves ports below 1024 for privileged processes. A rootless container therefore cannot publish host port 80 or 443:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d -p 80:8080 registry.access.redhat.com/ubi9/httpd-24</span>
+<span class="o">Error: rootlessport cannot expose privileged port 80, you can add 'net.ipv4.ip_unprivileged_port_start=80' to /etc/sysctl.conf (currently 1024), or choose a larger port number (>= 1024)</span></pre>
+    <div class="prose">
+      <p>The fix in this course is simply to use a host port of 1024 or above. This is also why Red Hat's images listen on 8080 rather than 80 inside the container: an unprivileged process can bind it.</p>
+      <h3>Container-to-container traffic</h3>
+      <p>Rootless containers share a private network that Podman sets up for your user. Every container you start without <code>--network</code> joins the default network, named <code>podman</code>. Containers on it can reach each other by IP address, but <strong>the default network does not provide name resolution</strong>. IP addresses change every time a container is recreated, so relying on them is fragile.</p>
+      <p>Create your own network instead. Podman runs a small DNS service for every user-defined network, so containers on it can find each other by container name:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman network create app-net</span>
+<span class="p">$ </span><span class="c">podman run -d --name web --network app-net registry.access.redhat.com/ubi9/httpd-24</span>
+<span class="p">$ </span><span class="c">podman run --rm --network app-net registry.access.redhat.com/ubi9/ubi curl -s http://web:8080</span></pre>
+    <p class="hint">Notice the second container reached <code class="inline-code">web</code> on port 8080 without any <code class="inline-code">-p</code>. Publishing is only needed for traffic coming from outside Podman's network.</p>
+    <div class="callout exam"><span class="label">Exam habit</span>
+      <p>When two containers need to talk, put them on one user-defined network and use container names as hostnames. Reach for <code>-p</code> only for the ports a person or another machine needs to reach from the host.</p></div>
+    <div class="prose">
+      <h3>Configuring with environment variables</h3>
+      <p>Many images expect settings as environment variables. A database image, for example, typically needs a user, password and database name before it will start. Red Hat's database images live on <code>registry.redhat.io</code>, which requires you to sign in first with <code>podman login registry.redhat.io</code>:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d --name db --network app-net \
+  -e MYSQL_USER=user1 -e MYSQL_PASSWORD=mypa55 -e MYSQL_DATABASE=items \
+  registry.redhat.io/rhel9/mariadb-105</span></pre>
+    <p class="hint">Each image documents the variables it reads. Check with <code class="inline-code">skopeo inspect</code> or the image's page in the Red Hat Ecosystem Catalog.</p>
+  </section>
+
+  <section class="unit" id="practice" data-unit>
+    <h2><span class="n">6</span>Practice terminal</h2>
+    <p class="prose">This is a simulator, not a real shell, but it behaves like Podman for the commands in this chapter, including the error messages. Work through the missions. Use the up and down arrow keys to recall earlier commands, and type <code class="inline-code">help</code> for the list of what it understands.</p>
+    <div class="sim">
+      <div class="term" aria-label="Podman practice terminal">
+        <div class="term-bar"><span>student@workstation ~ (rootless)</span><span><button type="button" id="t-clear">Clear</button> <button type="button" id="t-reset">Reset lab</button></span></div>
+        <div class="term-log" id="t-log" role="log" aria-live="polite" tabindex="0" aria-label="Terminal output"></div>
+        <div class="term-in"><label for="t-in">$</label><input id="t-in" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Command"><button type="button" class="run" id="t-run">Run</button></div>
+      </div>
+      <div class="missions">
+        <h4>Missions</h4>
+        <ol id="missions"></ol>
+        <p class="hint" id="m-count" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="unit" id="check" data-unit>
+    <h2><span class="n">7</span>Knowledge check</h2>
+    <p class="hint">Eight questions, answer order shuffled each time. Practice only; not graded.</p>
+    <div id="quiz"></div>
+  </section>
+
+  <section class="unit" id="lab" data-unit>
+    <h2><span class="n">8</span>Lab bridge</h2>
+    <div class="bridge">
+      <h3>Your graded lab: DO188 Chapter 2 in the OLE</h3>
+      <p class="prose">Complete the Chapter 2 guided exercises first, then the end-of-chapter lab. The lab is graded on completion and correctness, and counts toward the 50% lab component of your grade.</p>
+      <p class="prose"><strong>Before you start</strong></p>
+      <ul class="checklist">
+        <li><input type="checkbox" id="b1" data-check="b1"><label for="b1">I finished every mission in the practice terminal.</label></li>
+        <li><input type="checkbox" id="b2" data-check="b2"><label for="b2">I can explain the difference between <code class="inline-code">podman ps</code> and <code class="inline-code">podman ps -a</code>.</label></li>
+        <li><input type="checkbox" id="b3" data-check="b3"><label for="b3">I know which side of <code class="inline-code">-p host:container</code> is which.</label></li>
+        <li><input type="checkbox" id="b4" data-check="b4"><label for="b4">I read the lab instructions all the way through before typing anything.</label></li>
+      </ul>
+      <p class="prose"><strong>Watch for these during the lab</strong></p>
+      <ul>
+        <li>Use the exact container names, ports and image names the lab asks for. The grading script checks them literally.</li>
+        <li>Verify each step yourself (<code class="inline-code">podman ps</code>, <code class="inline-code">curl</code>, <code class="inline-code">podman logs</code>) before moving on.</li>
+        <li>Run the lab's start command before you begin and its grading or finish command when you're done, exactly as the OLE instructions show.</li>
+        <li>If the lab environment itself fails, report it to your instructor right away. Environment problems can't be accepted as an excuse after the due date.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="unit" id="cheat" data-unit>
+    <h2><span class="n">9</span>Cheat sheet</h2>
+    <div class="table-wrap"><table>
+      <caption class="vh">Podman basics command reference</caption>
+      <thead><tr><th scope="col">Task</th><th scope="col">Command</th></tr></thead>
+      <tbody>
+        <tr><td>Pull an image</td><td><code>podman pull registry.access.redhat.com/ubi9/httpd-24</code></td></tr>
+        <tr><td>List local images</td><td><code>podman images</code></td></tr>
+        <tr><td>Run a one-off command</td><td><code>podman run --rm IMAGE COMMAND</code></td></tr>
+        <tr><td>Run a server in the background</td><td><code>podman run -d --name NAME -p HOST:CTR IMAGE</code></td></tr>
+        <tr><td>Get a shell in a new container</td><td><code>podman run -it --rm IMAGE /bin/bash</code></td></tr>
+        <tr><td>List running containers</td><td><code>podman ps</code></td></tr>
+        <tr><td>List all containers</td><td><code>podman ps -a</code></td></tr>
+        <tr><td>Stop, start, restart</td><td><code>podman stop NAME</code>, <code>podman start NAME</code>, <code>podman restart NAME</code></td></tr>
+        <tr><td>Remove a container</td><td><code>podman rm NAME</code> (add <code>-f</code> if running)</td></tr>
+        <tr><td>Read logs</td><td><code>podman logs [-f] NAME</code></td></tr>
+        <tr><td>Run a command inside</td><td><code>podman exec [-it] NAME COMMAND</code></td></tr>
+        <tr><td>Query one detail</td><td><code>podman inspect --format '{{.State.Status}}' NAME</code></td></tr>
+        <tr><td>Copy a file in</td><td><code>podman cp FILE NAME:/path</code></td></tr>
+        <tr><td>Show published ports</td><td><code>podman port NAME</code></td></tr>
+        <tr><td>Create a network with DNS</td><td><code>podman network create NET</code></td></tr>
+        <tr><td>Remove an image</td><td><code>podman rmi IMAGE</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</main>
+</div>
+
+<footer class="site-foot"><div class="inner">
+  <p>Built for <span class="program">NETW 112 Containers &amp; Orchestration</span> · Brookdale Community College · <span class="year">2026</span></p>
+  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat, Red Hat Enterprise Linux and OpenShift are trademarks of Red Hat, Inc. The practice terminal is a teaching simulation and does not run real software.</p>
+</div></footer>
+
+<script>/* NETW 112 shared module runtime. Inlined into every page. */
+var NETW = (function () {
+  'use strict';
+  var MOD = document.body.getAttribute('data-module') || 'hub';
+  var KEY = 'netw112:' + MOD;
+
+  function read(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || null; } catch (e) { return null; }
+  }
+  function write(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage unavailable */ }
+  }
+  var state = read(KEY) || { units: {}, checks: {}, quiz: null, total: 0 };
+  state.units = state.units || {}; state.checks = state.checks || {};
+  function save() { write(KEY, state); }
+
+  function announce(msg) {
+    var r = document.getElementById('sr-status');
+    if (!r) return;
+    r.textContent = '';
+    window.setTimeout(function () { r.textContent = msg; }, 30);
+  }
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function el(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') n.className = attrs[k]; else n.setAttribute(k, attrs[k]);
+    });
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /* ---------- copy buttons ---------- */
+  function initCopy() {
+    document.querySelectorAll('pre.cmd').forEach(function (pre) {
+      var b = el('button', { type: 'button', class: 'copy-btn' }, 'Copy');
+      b.setAttribute('aria-label', 'Copy commands');
+      b.addEventListener('click', function () {
+        var cmds = pre.querySelectorAll('.c');
+        var text = cmds.length ? Array.prototype.map.call(cmds, function (c) { return c.textContent; }).join('\n') : pre.textContent;
+        function ok() { b.textContent = 'Copied'; announce('Commands copied to clipboard'); setTimeout(function () { b.textContent = 'Copy'; }, 1600); }
+        function fallback() {
+          var ta = el('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+          var done = false; try { done = document.execCommand('copy'); } catch (e) { done = false; }
+          document.body.removeChild(ta);
+          if (done) ok(); else { b.textContent = 'Select text'; announce('Copy is blocked here. Select the text and copy it manually.'); }
+        }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
+      });
+      pre.appendChild(b);
+    });
+  }
+
+  /* ---------- units, progress, TOC ---------- */
+  var units = [];
+  function updateProgress() {
+    var done = units.filter(function (u) { return state.units[u.id]; }).length;
+    state.total = units.length; save();
+    var pct = units.length ? Math.round(done / units.length * 100) : 0;
+    var bar = document.getElementById('progress');
+    if (bar) {
+      bar.setAttribute('aria-valuenow', String(pct));
+      bar.querySelector('i').style.width = pct + '%';
+      var lbl = document.getElementById('progress-count');
+      if (lbl) lbl.textContent = done + ' of ' + units.length + ' sections';
+    }
+    document.querySelectorAll('.toc a').forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var t = a.querySelector('.tick');
+      if (state.units[id] && !t) { t = el('span', { class: 'tick' }, '✓'); t.appendChild(el('span', { class: 'vh' }, ' completed')); a.appendChild(t); }
+      if (!state.units[id] && t) a.removeChild(t);
+    });
+  }
+  function initUnits() {
+    document.querySelectorAll('section[data-unit]').forEach(function (s) {
+      units.push(s);
+      var row = el('div', { class: 'done-row' });
+      var b = el('button', { type: 'button', class: 'btn ghost done-btn' });
+      function paint() {
+        var on = !!state.units[s.id];
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.textContent = on ? 'Section complete' : 'Mark section complete';
+      }
+      b.addEventListener('click', function () {
+        state.units[s.id] = !state.units[s.id];
+        if (!state.units[s.id]) delete state.units[s.id];
+        paint(); updateProgress();
+        announce(state.units[s.id] ? 'Section marked complete' : 'Section marked not complete');
+      });
+      paint(); row.appendChild(b); s.appendChild(row);
+    });
+    updateProgress();
+    if ('IntersectionObserver' in window) {
+      var links = {};
+      document.querySelectorAll('.toc a').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting && links[e.target.id]) {
+            Object.keys(links).forEach(function (k) { links[k].removeAttribute('aria-current'); });
+            links[e.target.id].setAttribute('aria-current', 'true');
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px' });
+      units.forEach(function (u) { io.observe(u); });
+    }
+  }
+
+  /* ---------- persistent checklists ---------- */
+  function initChecks() {
+    document.querySelectorAll('input[type=checkbox][data-check]').forEach(function (c) {
+      var k = c.getAttribute('data-check');
+      c.checked = !!state.checks[k];
+      c.addEventListener('change', function () { state.checks[k] = c.checked; save(); });
+    });
+  }
+
+  /* ---------- quiz engine ---------- */
+  function quiz(root, items) {
+    var answered = {}; var correct = 0;
+    var summary = el('p', { class: 'quiz-summary', 'aria-live': 'polite' });
+    items.forEach(function (item, qi) {
+      var fs = el('fieldset', { class: 'quiz-q' });
+      var lg = el('legend'); lg.appendChild(el('span', { class: 'qn' }, String(qi + 1))); lg.appendChild(document.createTextNode(item.q));
+      fs.appendChild(lg);
+      var name = MOD + '-q' + qi;
+      var opts = item.ordered ? item.choices.slice() : shuffle(item.choices);
+      opts.forEach(function (ch, ci) {
+        var id = name + '-' + ci;
+        var lab = el('label', { class: 'choice', for: id });
+        var inp = el('input', { type: 'radio', name: name, id: id });
+        inp.value = ch.ok ? '1' : '0';
+        lab.appendChild(inp); lab.appendChild(el('span', null, ch.t));
+        fs.appendChild(lab);
+      });
+      var btn = el('button', { type: 'button', class: 'btn' }, 'Check answer');
+      var fb = el('div', { class: 'feedback', 'aria-live': 'polite' });
+      btn.addEventListener('click', function () {
+        var pick = fs.querySelector('input:checked');
+        if (!pick) { fb.className = 'feedback wrong'; fb.textContent = 'Choose an answer first.'; return; }
+        var right = pick.value === '1';
+        fs.querySelectorAll('.choice').forEach(function (c) {
+          c.classList.remove('is-right', 'is-wrong');
+          var i = c.querySelector('input');
+          if (i.value === '1') c.classList.add('is-right');
+          else if (i === pick) c.classList.add('is-wrong');
+          i.disabled = true;
+        });
+        fb.className = 'feedback ' + (right ? 'right' : 'wrong'); fb.textContent = '';
+        fb.appendChild(el('span', { class: 'verdict' }, right ? 'Correct. ' : 'Not quite. '));
+        fb.appendChild(document.createTextNode(item.why));
+        btn.disabled = true;
+        if (!answered[qi]) { answered[qi] = true; if (right) correct++; }
+        var n = Object.keys(answered).length;
+        if (n === items.length) {
+          var best = Math.max(correct, (state.quiz && state.quiz.best) || 0);
+          state.quiz = { score: correct, total: items.length, best: best }; save();
+          summary.textContent = 'You scored ' + correct + ' of ' + items.length + '. Best so far: ' + best + '. This check is practice only and is not graded.';
+          retry.hidden = false;
+        } else summary.textContent = n + ' of ' + items.length + ' answered.';
+      });
+      fs.appendChild(btn); fs.appendChild(fb); root.appendChild(fs);
+    });
+    var retry = el('button', { type: 'button', class: 'btn ghost' }, 'Try the check again');
+    retry.hidden = true;
+    retry.addEventListener('click', function () { root.textContent = ''; quiz(root, items); root.querySelector('input').focus(); });
+    root.appendChild(summary); root.appendChild(retry);
+    if (state.quiz) summary.textContent = 'Last attempt: ' + state.quiz.score + ' of ' + state.quiz.total + '. Best: ' + state.quiz.best + '.';
+  }
+
+  function init() { initCopy(); initUnits(); initChecks(); }
+
+  return { init: init, quiz: quiz, el: el, shuffle: shuffle, announce: announce, read: read, write: write, state: state, save: save };
+})();
+
+/* NETW 112 shared Podman practice-terminal engine. Inlined into pages that use it. */
+var NETWSIM = (function () {
+  'use strict';
+  var el = NETW.el;
+  /* ================= shared tokenizer ================= */
+  function tokenize(s) {
+    var out = [], cur = '', q = null, has = false;
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (q) { if (ch === q) q = null; else cur += ch; continue; }
+      if (ch === '"' || ch === "'") { q = ch; has = true; continue; }
+      if (ch === '\\' && s[i + 1] === '\n') { i++; continue; }
+      if (/\s/.test(ch)) { if (cur || has) { out.push(cur); cur = ''; has = false; } continue; }
+      cur += ch;
+    }
+    if (cur || has) out.push(cur);
+    return out;
+  }
+  /* parse "podman run" options; returns {opts, image, cmd, err, parts[]} */
+  var VALUE_FLAGS = { '--name': 'name', '-p': 'publish', '--publish': 'publish', '-e': 'env', '--env': 'env', '--network': 'network', '--net': 'network', '-m': 'memory', '--memory': 'memory', '-v': 'volume', '--volume': 'volume', '-u': 'user', '--user': 'user' };
+  var BOOL_FLAGS = { '-d': 'detach', '--detach': 'detach', '-i': 'interactive', '--interactive': 'interactive', '-t': 'tty', '--tty': 'tty', '--rm': 'rm', '-it': 'it', '-ti': 'it', '-dit': 'dit', '-itd': 'dit' };
+  function parseRun(args) {
+    var o = { publish: [], env: [], volume: [] }, parts = [], i = 0;
+    while (i < args.length && args[i].charAt(0) === '-') {
+      var a = args[i], val = null, eq = a.indexOf('=');
+      if (a.indexOf('--') === 0 && eq > 0) { val = a.slice(eq + 1); a = a.slice(0, eq); }
+      if (BOOL_FLAGS[a]) {
+        var b = BOOL_FLAGS[a];
+        if (b === 'it') { o.interactive = o.tty = true; } else if (b === 'dit') { o.interactive = o.tty = o.detach = true; } else o[b] = true;
+        parts.push({ tok: args[i], kind: b }); i++; continue;
+      }
+      if (VALUE_FLAGS[a]) {
+        var k = VALUE_FLAGS[a];
+        if (val === null) { val = args[i + 1]; if (val === undefined) return { err: 'Error: flag needs an argument: ' + a, parts: parts }; parts.push({ tok: args[i] + ' ' + val, kind: k, val: val }); i += 2; }
+        else { parts.push({ tok: args[i], kind: k, val: val }); i++; }
+        if (Array.isArray(o[k])) o[k].push(val); else o[k] = val;
+        continue;
+      }
+      return { err: 'Error: unknown flag: ' + a, parts: parts, badTok: args[i] };
+    }
+    if (i >= args.length) return { err: 'Error: requires at least 1 arg(s), only received 0', parts: parts };
+    return { opts: o, image: args[i], cmd: args.slice(i + 1), parts: parts };
+  }
+
+  function create(cfg) {
+    var D = {
+      u94: 'sha256:4c1b2e7f90aa6d3150c7e2bb8f61d0a9e3f4275c6be019a87d2c4f5e6a7b8c91',
+      u93: 'sha256:9e02a7c34bf1d85e60a7b3c2d914f6e8a0b5c7d3e2f1a4b6c8d0e9f7a5b3c1d2',
+      m94: 'sha256:7d31c0be2a4f9e8d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d',
+      h1: 'sha256:5e8a90c7d6b2f31a4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f',
+      h0: 'sha256:b7f3e9a1c2d4e6f8a0b1c3d5e7f9a2b4c6d8e0f1a3b5c7d9e2f4a6b8c0d1e3f5'
+    };
+    var IMG = {
+      'registry.access.redhat.com/ubi9/ubi': { size: '219 MB', created: '2 weeks ago', cmd: '/bin/bash', kind: 'shell', tags: { 'latest': D.u94, '9.4': D.u94, '9.3': D.u93 }, version: '9.4' },
+      'registry.access.redhat.com/ubi9/ubi-minimal': { size: '102 MB', created: '2 weeks ago', cmd: '/bin/bash', kind: 'shell', tags: { 'latest': D.m94, '9.4': D.m94 }, version: '9.4' },
+      'registry.access.redhat.com/ubi9/httpd-24': { size: '385 MB', created: '3 weeks ago', cmd: '/usr/bin/run-httpd', kind: 'httpd', tags: { 'latest': D.h1, '1': D.h1, '1-338': D.h1, '1-322': D.h0 }, version: '1' }
+    };
+    var ADJ = ['brave', 'quirky', 'eager', 'gifted', 'nifty', 'serene', 'jolly', 'wizardly', 'zealous', 'clever'];
+    var NOUN = ['turing', 'hopper', 'lovelace', 'torvalds', 'ritchie', 'hamilton', 'knuth', 'liskov', 'shannon', 'babbage'];
+    var S;
+    function fresh() {
+      return { images: {}, ctrs: [], nets: { podman: { id: '2f259bab93aa', dns: false, subnet: '10.88.0' } }, ipn: 2, files: Object.assign({ 'index.html': '<h1>Hello from NETW 112</h1>' }, cfg.files || {}), remote: {}, auth: {}, archives: {}, flags: {}, last: null };
+    }
+    S = fresh();
+    var logEl = document.getElementById('t-log'), inEl = document.getElementById('t-in');
+    var hist = [], hpos = 0;
+  
+    function hex(n) { var s = ''; for (var i = 0; i < n; i++) s += '0123456789abcdef'[Math.floor(Math.random() * 16)]; return s; }
+    function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
+    function trunc(s, n) { return s.length > n ? s.slice(0, n - 3) + '...' : s; }
+    function ago(t) {
+      var s = Math.max(1, Math.round((Date.now() - t) / 1000));
+      if (s < 60) return s + ' second' + (s === 1 ? '' : 's');
+      var m = Math.round(s / 60); if (m < 60) return m + ' minute' + (m === 1 ? '' : 's');
+      var h = Math.round(m / 60); return h + ' hour' + (h === 1 ? '' : 's');
+    }
+    function print(text, cls) { var d = el('div', cls ? { class: cls } : null, text); logEl.appendChild(d); }
+    function echoCmd(c) { var d = el('div', { class: 'cmdline' }); d.appendChild(el('span', { class: 'p' }, '$ ')); d.appendChild(document.createTextNode(c)); logEl.appendChild(d); }
+    function err(t) { print(t, 'err'); return false; }
+    function note(t) { print('[simulator] ' + t, 'note'); }
+  
+    function parseRef(ref) {
+      var at = ref.indexOf('@'), dg = at > -1 ? ref.slice(at + 1) : null;
+      var base = at > -1 ? ref.slice(0, at) : ref, tag = null;
+      var slash = base.lastIndexOf('/'), colon = base.lastIndexOf(':');
+      if (colon > slash) { tag = base.slice(colon + 1); base = base.slice(0, colon); }
+      var first = base.split('/')[0];
+      var qualified = base.indexOf('/') > -1 && (first.indexOf('.') > -1 || first.indexOf(':') > -1 || first === 'localhost');
+      return { base: base, tag: tag, dg: dg, first: first, qualified: qualified };
+    }
+    function remoteTags(full) {
+      var o = {};
+      if (IMG[full]) Object.keys(IMG[full].tags).forEach(function (t) { o[t] = { digest: IMG[full].tags[t], meta: IMG[full] }; });
+      else if (S.remote[full]) Object.keys(S.remote[full].tags).forEach(function (t) { o[t] = S.remote[full].tags[t]; });
+      return o;
+    }
+    function idOf(dg) { return dg.slice(7, 19); }
+    function resolveImage(ref, quiet) {
+      var p = parseRef(ref), full = p.base, tag = p.tag || 'latest';
+      if (!p.qualified) {
+        var guess = 'registry.access.redhat.com/' + (p.base.indexOf('/') > -1 ? p.base : 'ubi9/' + p.base);
+        if (IMG[guess]) { full = guess; if (!quiet) note('Short name "' + ref + '" resolved to ' + guess + '. On a real system short names can be ambiguous or prompt you to choose. Type the full name.'); }
+        else return { err: 'Error: short-name resolution failed for "' + ref + '". [simulator] Available images: ' + Object.keys(IMG).join(', ') };
+      }
+      var first = full.split('/')[0];
+      if (first === 'localhost') return { err: 'Error: initializing source docker://' + full + ':' + tag + ': pinging container registry localhost: Get "https://localhost/v2/": dial tcp [::1]:443: connect: connection refused' };
+      if (first === 'quay.io') {
+        if (!S.auth['quay.io']) return { err: 'Error: initializing source docker://' + full + ':' + tag + ': reading manifest ' + tag + ' in ' + full + ': unauthorized: access to the requested resource is not authorized   [simulator] your quay.io repositories are private; run podman login quay.io' };
+        if (!S.remote[full]) return { err: 'Error: initializing source docker://' + full + ':' + tag + ': reading manifest ' + tag + ' in ' + full + ': manifest unknown' };
+      } else if (!IMG[full]) {
+        if (first === 'registry.access.redhat.com') return { err: 'Error: initializing source docker://' + full + ':' + tag + ': reading manifest ' + tag + ' in ' + full + ': name unknown: Repo not found' };
+        if (first === 'registry.redhat.io') return { err: 'Error: initializing source docker://' + full + ':' + tag + ': unable to retrieve auth token: invalid username/password: unauthorized. [simulator] registry.redhat.io needs podman login, and this simulator only offers the ubi9 images.' };
+        return { err: 'Error: [simulator] ' + full + ' is not available here. Try: ' + Object.keys(IMG).join(', ') };
+      }
+      var tags = remoteTags(full);
+      if (p.dg) {
+        var hit = Object.keys(tags).filter(function (t) { return tags[t].digest === p.dg; })[0];
+        if (!hit) return { err: 'Error: initializing source docker://' + full + '@' + p.dg + ': reading manifest ' + p.dg + ' in ' + full + ': manifest unknown' };
+        return { full: full, tag: '<none>', key: full + '@' + p.dg, meta: tags[hit].meta, digest: p.dg, id: idOf(p.dg) };
+      }
+      if (!tags[tag]) return { err: 'Error: initializing source docker://' + full + ':' + tag + ': reading manifest ' + tag + ' in ' + full + ': manifest unknown' };
+      return { full: full, tag: tag, key: full + ':' + tag, meta: tags[tag].meta, digest: tags[tag].digest, id: idOf(tags[tag].digest) };
+    }
+    function pull(r) {
+      print('Trying to pull ' + (r.tag === '<none>' ? r.key : r.key) + '...');
+      print('Getting image source signatures');
+      var have = Object.keys(S.images).some(function (k) { return S.images[k].id === r.id; });
+      print('Copying blob ' + r.digest.slice(7, 19) + (have ? ' skipped: already exists' : ' done'));
+      print('Copying config ' + r.id + ' done');
+      print('Writing manifest to image destination');
+      print(r.id + r.digest.slice(19, 71));
+      S.images[r.key] = { repo: r.full, tag: r.tag, id: r.id, digest: r.digest, size: r.meta.size, created: r.meta.created, meta: r.meta };
+    }
+    function findLocal(ref) {
+      var keys = Object.keys(S.images), hit = null;
+      if (/^[0-9a-f]{3,64}$/.test(ref)) { hit = keys.filter(function (k) { return S.images[k].id.indexOf(ref) === 0; }); if (hit.length) return hit; }
+      var p = parseRef(ref), tag = p.dg ? null : (p.tag || 'latest');
+      hit = keys.filter(function (k) {
+        var i = S.images[k];
+        var repoOk = p.qualified ? i.repo === p.base : (i.repo === 'localhost/' + p.base || i.repo.slice(-(p.base.length + 1)) === '/' + p.base);
+        return repoOk && (p.dg ? i.digest === p.dg : i.tag === tag);
+      });
+      return hit.length ? [hit[0]] : [];
+    }
+    function find(ref) {
+      for (var i = 0; i < S.ctrs.length; i++) { var c = S.ctrs[i]; if (c.name === ref || (ref.length >= 3 && c.id.indexOf(ref) === 0)) return c; }
+      return null;
+    }
+    function noSuch(ref) { return err('Error: no container with name or ID "' + ref + '" found: no such container'); }
+    function longRunning(c) { return c.kind === 'httpd' && !c.cmd.length || (c.cmd[0] === 'sleep' && (c.cmd[1] === 'infinity' || Number(c.cmd[1]) > 30)) || (c.kind === 'shell' && !c.cmd.length && c.interactive && c.detach); }
+    function ip(c) { return S.nets[c.network].subnet + '.' + c.ipn; }
+    function stamp() { var d = new Date(); return d.toUTCString().replace(' GMT', ''); }
+    function startLogs(c) {
+      if (c.kind !== 'httpd' || c.cmd.length) return;
+      c.logs.push('=> sourcing 10-set-mpm.sh ...', '=> sourcing 20-copy-config.sh ...', '=> sourcing 40-ssl-certs.sh ...', '---> Generating SSL key pair for httpd...',
+        'AH00558: httpd: Could not reliably determine the server\'s fully qualified domain name, using ' + ip(c) + '. Set the \'ServerName\' directive globally to suppress this message',
+        '[' + stamp() + '] [mpm_event:notice] [pid 1:tid 1] AH00489: Apache/2.4.57 (Red Hat Enterprise Linux) OpenSSL/3.0.7 configured -- resuming normal operations',
+        '[' + stamp() + '] [core:notice] [pid 1:tid 1] AH00094: Command line: \'httpd -D FOREGROUND\'');
+    }
+    function portInUse(h, except) {
+      return S.ctrs.some(function (c) { return c !== except && c.state === 'running' && c.ports.some(function (p) { return p.h === h; }); });
+    }
+    function exitCtr(c, code) {
+      c.state = 'exited'; c.code = code; c.finished = Date.now();
+      if (c.rm) S.ctrs.splice(S.ctrs.indexOf(c), 1);
+    }
+  
+    /* processes inside a container */
+    function curl(from, url) {
+      var u = url.replace(/^https?:\/\//, ''), hostport = u.split('/')[0], path = '/' + u.split('/').slice(1).join('/');
+      var host = hostport.split(':')[0], port = Number(hostport.split(':')[1] || 80), target = null;
+      if (from === 'host') {
+        if (host !== 'localhost' && host !== '127.0.0.1') return { err: 'curl: (6) Could not resolve host: ' + host + '   [simulator] from the host, use localhost and the published port' };
+        S.ctrs.forEach(function (c) { if (c.state === 'running' && c.ports.some(function (p) { return p.h === port && p.c === 8080; })) target = c; });
+        if (!target) return { err: 'curl: (7) Failed to connect to ' + host + ' port ' + port + ' after 0 ms: Couldn\'t connect to server' };
+      } else {
+        if (host === 'localhost' || host === '127.0.0.1') target = from;
+        else {
+          var t = find(host);
+          if (!t || t.network !== from.network || !S.nets[from.network].dns) return { err: 'curl: (6) Could not resolve host: ' + host + (S.nets[from.network].dns ? '' : '   [simulator] the default "podman" network has no DNS; use a network you created') };
+          target = t;
+        }
+        if (target.state !== 'running' || target.kind !== 'httpd' || port !== 8080) return { err: 'curl: (7) Failed to connect to ' + host + ' port ' + port + ' after 0 ms: Couldn\'t connect to server' };
+      }
+      if (target.kind !== 'httpd' || target.cmd.length) return { err: 'curl: (7) Failed to connect to ' + host + ' port ' + port + ': Connection refused' };
+      var file = path === '/' ? 'index.html' : path.replace(/^\/+/, '');
+      var src = from === 'host' ? '10.88.0.1' : ip(from);
+      if (target.files[file] != null) {
+        target.logs.push(src + ' - - [' + stamp() + '] "GET ' + path + ' HTTP/1.1" 200 ' + target.files[file].length + ' "-" "curl/7.76.1"');
+        return { out: [target.files[file]] };
+      }
+      target.logs.push(src + ' - - [' + stamp() + '] "GET ' + path + ' HTTP/1.1" 403 ' + 7620 + ' "-" "curl/7.76.1"');
+      return { out: ['<!doctype html>', '<html>', '  <head><title>Test Page for the HTTP Server on Red Hat Enterprise Linux</title></head>', '  ...', '</html>'], note: 'Status 403 with the Red Hat test page is normal: the web root is empty. Try copying index.html into the container.' };
+    }
+    function inside(c, args) {
+      var cmd = (args[0] || '').replace(/^\/(usr\/)?bin\//, ''), a = args.slice(1), isHttpd = c.kind === 'httpd';
+      var env = ['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'container=oci', 'HOSTNAME=' + c.id.slice(0, 12), 'HOME=' + (isHttpd ? '/opt/app-root/src' : '/root')].concat(c.env);
+      switch (cmd) {
+        case 'echo': return { out: [a.join(' ')] };
+        case 'hostname': return { out: [c.id.slice(0, 12)] };
+        case 'whoami': return { out: [isHttpd ? 'default' : 'root'] };
+        case 'id': return { out: [isHttpd ? 'uid=1001(default) gid=0(root) groups=0(root)' : 'uid=0(root) gid=0(root) groups=0(root)'] };
+        case 'uname': return { out: [a[0] === '-r' ? '5.14.0-427.13.1.el9_4.x86_64' : 'Linux'], note: a[0] === '-r' ? 'That is the host\u2019s kernel version. Containers share the host kernel.' : null };
+        case 'date': return { out: [new Date().toUTCString().replace('GMT', 'UTC')] };
+        case 'env': case 'printenv':
+          if (a[0]) { var hit = env.filter(function (e) { return e.split('=')[0] === a[0]; })[0]; return hit ? { out: [hit.split('=').slice(1).join('=')] } : { out: [], code: 1 }; }
+          return { out: env };
+        case 'cat':
+          if (a[0] === '/etc/redhat-release') return { out: ['Red Hat Enterprise Linux release 9.4 (Plow)'] };
+          if (a[0] === '/etc/os-release') return { out: ['NAME="Red Hat Enterprise Linux"', 'VERSION="9.4 (Plow)"', 'ID="rhel"', 'ID_LIKE="fedora"', 'VERSION_ID="9.4"', 'PRETTY_NAME="Red Hat Enterprise Linux 9.4 (Plow)"'] };
+          if (a[0] && a[0].indexOf('/var/www/html/') === 0 && c.files[a[0].slice(14)] != null) return { out: [c.files[a[0].slice(14)]] };
+          return { err: 'cat: ' + (a[0] || '') + ': No such file or directory', code: 1 };
+        case 'ls':
+          if (!a[0] || a[0] === '/') return { out: ['afs  bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var'] };
+          if (a[0].replace(/\/$/, '') === '/var/www/html') return { out: [Object.keys(c.files).join('  ')] };
+          return { err: 'ls: cannot access \'' + a[0] + '\': No such file or directory', code: 2 };
+        case 'ps':
+          if (isHttpd && !c.cmd.length) return { out: ['    PID TTY          TIME CMD', '      1 ?        00:00:00 httpd', '     28 ?        00:00:00 httpd', '     29 ?        00:00:00 httpd', '     52 ?        00:00:00 ps'] };
+          return { out: ['    PID TTY          TIME CMD', '      1 ?        00:00:00 ' + (c.cmd[0] || 'bash'), '      7 ?        00:00:00 ps'] };
+        case 'curl': var target = a.filter(function (x) { return x[0] !== '-'; })[0]; return target ? curl(c, target) : { err: 'curl: try \'curl --help\' for more information', code: 2 };
+        case 'sleep': return { out: [] };
+        case 'bash': case 'sh': return { out: [], note: 'An interactive shell would open here (bash-5.1' + (isHttpd ? '$' : '#') + '). The simulator skips interactive sessions; run single commands with exec instead, for example: podman exec ' + c.name + ' ls /var/www/html' };
+        case 'exit': case 'true': return { out: [] };
+        default: return { err: 'Error: crun: executable file `' + args[0] + '` not found in $PATH: No such file or directory: OCI runtime attempted to invoke a command that was not found', code: 127 };
+      }
+    }
+    function show(res) {
+      (res.out || []).forEach(function (l) { print(l); });
+      if (res.err) print(res.err, 'err');
+      if (res.note) note(res.note);
+    }
+  
+    /* podman subcommands */
+    var P = {};
+    P.run = function (args, create) {
+      var r = parseRun(args); if (r.err) return err(r.err);
+      var o = r.opts;
+      var lk = findLocal(r.image), img;
+      if (lk.length) { var li = S.images[lk[0]]; img = { key: lk[0], meta: li.meta }; }
+      else { img = resolveImage(r.image); if (img.err) return err(img.err); }
+      if (o.name && find(o.name)) return err('Error: creating container storage: the container name "' + o.name + '" is already in use by ' + find(o.name).id + '. You have to remove that container to be able to reuse that name: that name is already in use');
+      var net = o.network || 'podman';
+      if (!S.nets[net]) return err('Error: unable to find network with name or ID ' + net + ': network not found');
+      var ports = [];
+      for (var i = 0; i < o.publish.length; i++) {
+        var bits = o.publish[i].split(':'), c = Number(bits[bits.length - 1].split('/')[0]);
+        var h = bits.length > 1 ? Number(bits[bits.length - 2]) : 40000 + Math.floor(Math.random() * 20000);
+        if (!c || !h) return err('Error: invalid port format "' + o.publish[i] + '"');
+        if (h < 1024) return err('Error: rootlessport cannot expose privileged port ' + h + ', you can add \'net.ipv4.ip_unprivileged_port_start=' + h + '\' to /etc/sysctl.conf (currently 1024), or choose a larger port number (>= 1024): listen tcp 0.0.0.0:' + h + ': bind: permission denied');
+        ports.push({ h: h, c: c });
+      }
+      if (o.memory && !/^\d+[kmg]?b?$/i.test(o.memory)) return err('Error: invalid argument "' + o.memory + '" for "-m, --memory" flag');
+      if (!S.images[img.key]) pull(img);
+      var ctr = {
+        id: hex(64), name: o.name || ADJ[Math.floor(Math.random() * 10)] + '_' + NOUN[Math.floor(Math.random() * 10)],
+        image: img.key, kind: img.meta.kind, cmd: r.cmd, defcmd: img.meta.cmd, env: o.env.map(function (e) { return e.indexOf('=') > -1 ? e : e + '='; }),
+        ports: ports, network: net, ipn: S.ipn++, rm: !!o.rm, detach: !!o.detach, interactive: !!(o.interactive && o.tty),
+        state: 'created', code: 0, created: Date.now(), logs: [], files: {}
+      };
+      S.ctrs.push(ctr);
+      if (create) { print(ctr.id); return true; }
+      return startCtr(ctr, true);
+    };
+    function startCtr(ctr, fromRun) {
+      var conflict = ctr.ports.filter(function (p) { return portInUse(p.h, ctr); })[0];
+      if (conflict) {
+        if (fromRun) S.ctrs.splice(S.ctrs.indexOf(ctr), 1);
+        return err('Error: rootlessport listen tcp 0.0.0.0:' + conflict.h + ': bind: address already in use');
+      }
+      ctr.state = 'running'; ctr.started = Date.now();
+      if (longRunning(ctr)) {
+        startLogs(ctr);
+        if (fromRun && ctr.detach) print(ctr.id);
+        else if (fromRun) {
+          ctr.logs.forEach(function (l) { print(l); });
+          note('A foreground server keeps your terminal busy, and Ctrl+C would stop it. The simulator stopped it for you. Use -d to run servers in the background.');
+          exitCtr(ctr, 0);
+        } else print(ctr.name);
+        return true;
+      }
+      /* short-lived process */
+      var res;
+      var shellCmd = !ctr.cmd.length || /^(\/(usr\/)?bin\/)?(ba)?sh$/.test(ctr.cmd[0]);
+      if (shellCmd && ctr.interactive && !ctr.detach) res = { out: [], note: 'You would now be at a shell inside the container. Typing exit ends the shell, and the container exits with it. The simulator skips the interactive part.' };
+      else if (ctr.cmd.length) res = inside(ctr, ctr.cmd);
+      else if (ctr.interactive && !ctr.detach) res = { out: [], note: 'You would now be at a root shell inside the container (bash-5.1#). Typing exit ends the shell, and the container exits with it. The simulator skips the interactive part.' };
+      else res = { out: [], note: ctr.detach ? 'The default command is a shell, and a shell with no terminal exits at once. The container already exited; see it with podman ps -a.' : null };
+      if (fromRun && ctr.detach) print(ctr.id); else if (!fromRun) print(ctr.name);
+      if (!ctr.detach || !fromRun) { (res.out || []).forEach(function (l) { if (fromRun) print(l); ctr.logs.push(l); }); if (res.err && fromRun) print(res.err, 'err'); }
+      else (res.out || []).forEach(function (l) { ctr.logs.push(l); });
+      if (res.note) note(res.note);
+      if (ctr.cmd[0] === 'sleep' && fromRun && !ctr.detach) note('The container slept, then exited when sleep finished.');
+      exitCtr(ctr, res.code || 0);
+      return !res.err;
+    }
+    P.create = function (args) { return P.run(args, true); };
+    P.ps = function (args) {
+      var all = args.some(function (a) { return a === '-a' || a === '--all' || a === '-aq' || a === '-qa'; });
+      var quiet = args.some(function (a) { return a === '-q' || a === '--quiet' || a === '-aq' || a === '-qa'; });
+      var bad = args.filter(function (a) { return ['-a', '--all', '-q', '--quiet', '-aq', '-qa'].indexOf(a) === -1; })[0];
+      if (bad) return err('Error: unknown shorthand flag or option: ' + bad + '   [simulator] supported: -a, -q');
+      var list = S.ctrs.filter(function (c) { return all || c.state === 'running'; });
+      if (quiet) { list.forEach(function (c) { print(c.id.slice(0, 12)); }); return true; }
+      print(pad('CONTAINER ID', 14) + pad('IMAGE', 49) + pad('COMMAND', 22) + pad('CREATED', 16) + pad('STATUS', 28) + pad('PORTS', 24) + 'NAMES');
+      list.forEach(function (c) {
+        var status = c.state === 'running' ? 'Up ' + ago(c.started) : c.state === 'created' ? 'Created' : 'Exited (' + c.code + ') ' + ago(c.finished) + ' ago';
+        var ports = c.ports.map(function (p) { return '0.0.0.0:' + p.h + '->' + p.c + '/tcp'; }).join(', ');
+        var cmd = c.cmd.length ? c.cmd.join(' ') : c.defcmd;
+        print(pad(c.id.slice(0, 12), 14) + pad(c.image, 49) + pad(trunc(cmd, 20), 22) + pad(ago(c.created) + ' ago', 16) + pad(status, 28) + pad(ports, 24) + c.name);
+      });
+      return true;
+    };
+    P.container = function (args) { if (args[0] === 'ls' || args[0] === 'list') return P.ps(args.slice(1)); if (P[args[0]]) return P[args[0]](args.slice(1)); return err('Error: unrecognized command `podman container ' + (args[0] || '') + '`'); };
+    P.images = function (args) {
+      args = args || [];
+      var dg = args.indexOf('--digests') > -1;
+      print(pad('REPOSITORY', 46) + pad('TAG', 10) + (dg ? pad('DIGEST', 20) : '') + pad('IMAGE ID', 15) + pad('CREATED', 15) + 'SIZE');
+      Object.keys(S.images).forEach(function (k) { var i = S.images[k]; print(pad(i.repo, 46) + pad(i.tag, 10) + (dg ? pad(i.digest.slice(0, 15) + '...', 20) : '') + pad(i.id, 15) + pad(i.created, 15) + i.size); });
+      return true;
+    };
+    P.image = function (args) {
+      var sub = args[0], rest = args.slice(1);
+      var map = { ls: 'images', list: 'images', pull: 'pull', rm: 'rmi', inspect: 'inspect', tag: 'tag', push: 'push', history: 'history', save: 'save', load: 'load', prune: 'prune' };
+      if (sub === 'prune') return imagePrune(rest);
+      if (map[sub]) return P[map[sub]](rest);
+      return err('Error: unrecognized command `podman image ' + (sub || '') + '`');
+    };
+    P.pull = function (args) { if (!args[0]) return err('Error: requires exactly 1 arg(s), only received 0'); var r = resolveImage(args[0]); if (r.err) return err(r.err); pull(r); return true; };
+    P.rmi = function (args) {
+      var force = args.indexOf('-f') > -1 || args.indexOf('--force') > -1; args = args.filter(function (a) { return a[0] !== '-'; });
+      if (!args[0]) return err('Error: image name or ID must be specified');
+      var ok = true;
+      args.forEach(function (ref) {
+        var keys = findLocal(ref);
+        if (!keys.length) { ok = err('Error: ' + ref + ': image not known'); return; }
+        if (keys.length > 1 && !force) { ok = err('Error: unable to delete image "' + S.images[keys[0]].id + '" by ID with more than one tag (' + keys.join(', ') + '): please force removal'); return; }
+        var users = S.ctrs.filter(function (c) { return keys.indexOf(c.image) > -1; });
+        if (users.length && !force) { ok = err('Error: image used by ' + users[0].id + ': image is in use by a container: consider listing external containers and force-removing image'); return; }
+        users.forEach(function (c) { S.ctrs.splice(S.ctrs.indexOf(c), 1); });
+        keys.forEach(function (key) {
+          var id = S.images[key].id;
+          print('Untagged: ' + key); S.flags['rmi:' + key] = true; delete S.images[key];
+          if (!Object.keys(S.images).some(function (k) { return S.images[k].id === id; })) print('Deleted: ' + id + hex(52));
+        });
+      });
+      return ok;
+    };
+    function each(args, fn) {
+      if (!args.length) return err('Error: you must provide at least one name or ID');
+      var ok = true; args.forEach(function (ref) { var c = find(ref); if (!c) ok = noSuch(ref); else if (fn(c, ref) === false) ok = false; }); return ok;
+    }
+    P.stop = function (args) {
+      var i = args.indexOf('-t'); if (i > -1) args.splice(i, 2);
+      return each(args, function (c, ref) { if (c.state === 'running') exitCtr(c, 0); print(ref); });
+    };
+    P.kill = function (args) { return each(args, function (c, ref) { if (c.state !== 'running') return err('Error: can only kill running containers. ' + c.id + ' is in state ' + c.state + ': container state improper'); exitCtr(c, 137); print(ref); }); };
+    P.start = function (args) { return each(args, function (c) { if (c.state === 'running') { print(c.name); return; } return startCtr(c, false); }); };
+    P.restart = function (args) { return each(args, function (c) { if (c.state === 'running') { c.state = 'exited'; } return startCtr(c, false); }); };
+    P.rm = function (args) {
+      var force = args.some(function (a) { return a === '-f' || a === '--force'; });
+      var all = args.some(function (a) { return a === '-a' || a === '--all'; });
+      args = args.filter(function (a) { return a[0] !== '-'; });
+      if (all) args = S.ctrs.filter(function (c) { return force || c.state !== 'running'; }).map(function (c) { return c.name; });
+      if (all && !args.length) return true;
+      return each(args, function (c, ref) {
+        if (c.state === 'running' && !force) return err('Error: cannot remove container ' + c.id + ' as it is running - running or paused containers cannot be removed without force: container state improper');
+        S.ctrs.splice(S.ctrs.indexOf(c), 1); print(all ? c.id : ref);
+      });
+    };
+    P.logs = function (args) {
+      var follow = args.some(function (a) { return a === '-f' || a === '--follow'; });
+      var ti = args.indexOf('--tail'), tail = ti > -1 ? Number(args[ti + 1]) : null; if (ti > -1) args.splice(ti, 2);
+      args = args.filter(function (a) { return a[0] !== '-'; });
+      if (!args[0]) return err('Error: requires at least 1 arg(s), only received 0');
+      var c = find(args[0]); if (!c) return noSuch(args[0]);
+      var lines = tail ? c.logs.slice(-tail) : c.logs; lines.forEach(function (l) { print(l); });
+      if (follow) note('With -f, new log lines would keep streaming until you press Ctrl+C.');
+      return true;
+    };
+    P.exec = function (args) {
+      var i = 0, envs = [];
+      while (args[i] && args[i][0] === '-') { if (args[i] === '-e') { envs.push(args[i + 1]); i += 2; } else i++; }
+      var c = find(args[i] || ''); if (!args[i]) return err('Error: must provide a non-empty command to start an exec session');
+      if (!c) return noSuch(args[i]);
+      if (!args[i + 1]) return err('Error: must provide a non-empty command to start an exec session: invalid argument');
+      if (c.state !== 'running') return err('Error: can only create exec sessions on running containers: container state improper');
+      var res = inside(c, args.slice(i + 1)); show(res); return !res.err;
+    };
+    P.inspect = function (args) {
+      var fmt = null, refs = [];
+      for (var i = 0; i < args.length; i++) {
+        if (args[i] === '--format' || args[i] === '-f') { fmt = args[++i]; }
+        else if (args[i].indexOf('--format=') === 0) fmt = args[i].slice(9);
+        else refs.push(args[i]);
+      }
+      if (!refs.length) return err('Error: no names or ids specified');
+      var c = find(refs[0]);
+      if (!c) { var lk = findLocal(refs[0]); if (lk.length) return inspectImage(S.images[lk[0]], fmt); return err('Error: no such object: "' + refs[0] + '"'); }
+      var F = {
+        '.State.Status': c.state, '.State.Running': String(c.state === 'running'), '.State.ExitCode': String(c.code),
+        '.Name': c.name, '.Id': c.id, '.ImageName': c.image, '.Config.Image': c.image,
+        '.NetworkSettings.IPAddress': c.network === 'podman' && c.state === 'running' ? ip(c) : '',
+        '.HostConfig.NetworkMode': c.network === 'podman' ? 'bridge' : c.network
+      };
+      if (fmt) {
+        var m = fmt.match(/^\{\{\s*([.\w]+)\s*\}\}$/);
+        if (!m) return err('Error: template: inspect:1: unsupported in simulator. Try {{.State.Status}}, {{.State.ExitCode}}, {{.NetworkSettings.IPAddress}}, {{.Name}}');
+        if (!(m[1] in F)) return err('Error: template: inspect:1:' + (m[1].length + 3) + ': executing "inspect" at <' + m[1] + '>: can\'t evaluate field ' + m[1].split('.').pop() + '   [simulator] try {{.State.Status}}');
+        print(F[m[1]]);
+        if (m[1] === '.NetworkSettings.IPAddress' && c.network !== 'podman') note('Containers on a user-defined network report their address under .NetworkSettings.Networks instead.');
+        return true;
+      }
+      ['[', '  {', '    "Id": "' + c.id + '",', '    "Created": "' + new Date(c.created).toISOString() + '",', '    "Path": "' + (c.cmd[0] || c.defcmd) + '",',
+        '    "State": {', '      "Status": "' + c.state + '",', '      "Running": ' + (c.state === 'running') + ',', '      "ExitCode": ' + c.code + ',', '      …', '    },',
+        '    "ImageName": "' + c.image + '",', '    "Name": "' + c.name + '",', '    "NetworkSettings": { "IPAddress": "' + F['.NetworkSettings.IPAddress'] + '", "Ports": { ' + c.ports.map(function (p) { return '"' + p.c + '/tcp": [ { "HostIp": "", "HostPort": "' + p.h + '" } ]'; }).join(', ') + ' }, … },',
+        '    … hundreds more lines …', '  }', ']'].forEach(function (l) { print(l); });
+      note('Use --format to pull out a single value, for example: podman inspect --format \'{{.State.Status}}\' ' + c.name);
+      return true;
+    };
+    P.port = function (args) {
+      var c = find(args[0] || ''); if (!args[0]) return err('Error: you must supply a running container name or ID'); if (!c) return noSuch(args[0]);
+      c.ports.forEach(function (p) { print(p.c + '/tcp -> 0.0.0.0:' + p.h); }); return true;
+    };
+    P.cp = function (args) {
+      if (args.length !== 2) return err('Error: accepts 2 arg(s), received ' + args.length);
+      var src = args[0], dst = args[1];
+      if (dst.indexOf(':') > 0) {
+        var name = dst.split(':')[0], path = dst.split(':').slice(1).join(':'), c = find(name);
+        if (!c) return noSuch(name);
+        var fname = src.split('/').pop();
+        if (S.files[fname] == null) return err('Error: "' + src + '" could not be found on the host: no such file or directory');
+        var p = path.replace(/\/$/, '');
+        if (p === '/var/www/html') c.files[fname] = S.files[fname];
+        else if (p.indexOf('/var/www/html/') === 0) c.files[p.slice(14)] = S.files[fname];
+        else { note('Copied, but the simulator only tracks files under /var/www/html.'); }
+        return true;
+      }
+      if (src.indexOf(':') > 0) { var c2 = find(src.split(':')[0]); if (!c2) return noSuch(src.split(':')[0]); var fn = src.split('/').pop(); S.files[fn] = '(copied from ' + c2.name + ')'; return true; }
+      return err('Error: invalid arguments ' + src + ', ' + dst + ' you must use just one container');
+    };
+    P.network = function (args) {
+      var sub = args[0], name = args[1];
+      if (sub === 'ls' || sub === 'list') { print(pad('NETWORK ID', 14) + pad('NAME', 12) + 'DRIVER'); Object.keys(S.nets).forEach(function (n) { print(pad(S.nets[n].id, 14) + pad(n, 12) + 'bridge'); }); return true; }
+      if (sub === 'create') { if (!name) return err('Error: requires a network name   [simulator]'); if (S.nets[name]) return err('Error: network name ' + name + ' already used: network already exists'); S.nets[name] = { id: hex(12), dns: true, subnet: '10.89.' + (Object.keys(S.nets).length - 1) }; print(name); return true; }
+      if (sub === 'rm') { if (!S.nets[name]) return err('Error: unable to find network with name or ID ' + name + ': network not found'); if (name === 'podman') return err('Error: default network podman cannot be removed'); var u = S.ctrs.filter(function (c) { return c.network === name; }); if (u.length) return err('Error: "' + name + '" has associated containers with it. Use -f to forcibly delete containers and pods: network is being used'); delete S.nets[name]; print(name); return true; }
+      if (sub === 'inspect') { if (!S.nets[name]) return err('Error: network ' + name + ': unable to find network configuration'); print('[ { "name": "' + name + '", "driver": "bridge", "subnets": [ { "subnet": "' + S.nets[name].subnet + '.0/24" } ], "dns_enabled": ' + S.nets[name].dns + ', … } ]'); return true; }
+      return err('Error: unrecognized command `podman network ' + (sub || '') + '`   [simulator] supported: ls, create, rm, inspect');
+    };
+    P.version = function () { print('Client:       Podman Engine'); print('Version:      4.9.4-rhel'); print('API Version:  4.9.4-rhel'); print('Go Version:   go1.21.9 (Red Hat 1.21.9-2.el9_4)'); print('OS/Arch:      linux/amd64'); return true; };
+    P.login = function (args) {
+      var reg = args.filter(function (a, i) { return a[0] !== '-' && !(i > 0 && (args[i - 1] === '-u' || args[i - 1] === '--username')); })[0];
+      if (args.indexOf('--get-login') > -1) { return S.auth[reg] ? (print(S.auth[reg]), true) : err('Error: not logged into ' + reg); }
+      if (!reg) return err('Error: please provide a registry to log in to   [simulator] for example: podman login quay.io');
+      var ui = args.indexOf('-u'); var user = ui > -1 ? args[ui + 1] : 'student';
+      print('Username: ' + user); print('Password: ');
+      note('A real login prompts for your password. This simulator pretends you typed it. Never paste real credentials into a practice tool.');
+      print('Login Succeeded!'); S.auth[reg] = user; return true;
+    };
+    P.logout = function (args) {
+      var reg = args.filter(function (a) { return a[0] !== '-'; })[0];
+      if (args.indexOf('-a') > -1 || args.indexOf('--all') > -1) { S.auth = {}; print('Removed login credentials for all registries'); return true; }
+      if (!S.auth[reg]) return err('Error: not logged into ' + reg);
+      delete S.auth[reg]; print('Removed login credentials for ' + reg); return true;
+    };
+    function qualifyTarget(ref) {
+      var p = parseRef(ref);
+      if (p.dg) return { err: 'Error: ' + ref + ': tag by digest not supported' };
+      var full = p.qualified ? p.base : 'localhost/' + p.base;
+      return { full: full, tag: p.tag || 'latest', key: full + ':' + (p.tag || 'latest') };
+    }
+    P.tag = function (args) {
+      if (args.length < 2) return err('Error: requires at least 2 arg(s), only received ' + args.length);
+      var src = findLocal(args[0]); if (!src.length) return err('Error: ' + args[0] + ': image not known');
+      var img = S.images[src[0]], ok = true;
+      args.slice(1).forEach(function (t) {
+        var q = qualifyTarget(t); if (q.err) { ok = err(q.err); return; }
+        S.images[q.key] = { repo: q.full, tag: q.tag, id: img.id, digest: img.digest, size: img.size, created: img.created, meta: img.meta };
+      });
+      return ok;
+    };
+    function regWrite(full, tag, img) {
+      var first = full.split('/')[0];
+      if (first === 'quay.io') {
+        if (!S.auth['quay.io']) return 'Error: writing blob: initiating layer upload to /v2/' + full.slice(8) + '/blobs/uploads/ in quay.io: unauthorized: access to the requested resource is not authorized   [simulator] run podman login quay.io first';
+        if (full.split('/')[1] !== S.auth['quay.io']) return 'Error: writing blob: initiating layer upload in quay.io: unauthorized   [simulator] you can only push to your own namespace, quay.io/' + S.auth['quay.io'] + '/';
+      } else if (first === 'localhost') return 'Error: trying to reuse blob at destination: pinging container registry localhost: Get "https://localhost/v2/": connection refused   [simulator] tag the image with a registry name before pushing, for example quay.io/student/NAME:TAG';
+      else return 'Error: writing blob: initiating layer upload to /v2/' + full.split('/').slice(1).join('/') + '/blobs/uploads/ in ' + first + ': denied: requested access to the resource is denied';
+      S.remote[full] = S.remote[full] || { tags: {} };
+      S.remote[full].tags[tag] = { digest: img.digest, meta: img.meta };
+      return null;
+    }
+    P.push = function (args) {
+      args = args.filter(function (a) { return a[0] !== '-'; });
+      if (!args[0]) return err('Error: requires at least 1 arg(s), only received 0');
+      var src = findLocal(args[0]); if (!src.length) return err('Error: ' + args[0] + ': image not known');
+      var img = S.images[src[0]];
+      var dest = args[1] ? qualifyTarget(args[1].replace(/^docker:\/\//, '')) : { full: img.repo, tag: img.tag };
+      var e = regWrite(dest.full, dest.tag, img); if (e) return err(e);
+      print('Getting image source signatures'); print('Copying blob ' + img.digest.slice(23, 35) + ' done'); print('Copying config ' + img.id + ' done'); print('Writing manifest to image destination');
+      return true;
+    };
+    P.save = function (args) {
+      var oi = args.indexOf('-o'); if (oi === -1) oi = args.indexOf('--output');
+      if (oi === -1) return err('Error: refusing to save to terminal. Use -o flag or redirect   [simulator] for example: podman save -o myimage.tar IMAGE');
+      var file = args[oi + 1], refs = args.filter(function (a, i) { return i !== oi && i !== oi + 1 && a[0] !== '-'; });
+      if (!file || !refs[0]) return err('Error: requires an output file and an image');
+      var src = findLocal(refs[0]); if (!src.length) return err('Error: ' + refs[0] + ': image not known');
+      print('Copying blob ' + S.images[src[0]].digest.slice(23, 35) + ' done'); print('Copying config ' + S.images[src[0]].id + ' done'); print('Writing manifest to image destination');
+      S.archives[file] = { key: src[0], img: S.images[src[0]] }; S.files[file] = '(binary tar archive, ' + S.images[src[0]].size + ')';
+      return true;
+    };
+    P.load = function (args) {
+      var ii = args.indexOf('-i'); if (ii === -1) ii = args.indexOf('--input');
+      var file = ii > -1 ? args[ii + 1] : null;
+      if (!file) return err('Error: [simulator] use podman load -i FILE.tar');
+      var a = S.archives[file]; if (!a) return err('Error: payload does not match any of the supported image formats:\n * oci: open ' + file + ': no such file or directory');
+      print('Getting image source signatures'); print('Copying blob ' + a.img.digest.slice(23, 35) + ' done'); print('Writing manifest to image destination');
+      S.images[a.key] = a.img; print('Loaded image: ' + a.key); return true;
+    };
+    P.history = function (args) {
+      var src = findLocal(args.filter(function (a) { return a[0] !== '-'; })[0] || ''); if (!src.length) return err('Error: ' + (args[0] || '') + ': image not known');
+      var i = S.images[src[0]], H = i.meta.kind === 'httpd'
+        ? [['CMD ["/usr/bin/run-httpd"]', '0 B'], ['USER 1001', '0 B'], ['EXPOSE 8080 8443', '0 B'], ['RUN dnf install -y httpd mod_ssl … && dnf clean all', '162 MB'], ['COPY root /', '45 kB'], ['ENV HTTPD_VERSION=2.4 …', '0 B'], ['(s2i-core base layers)', '4.2 MB'], ['(ubi9-minimal base layer)', '219 MB']]
+        : [['CMD ["/bin/bash"]', '0 B'], ['LABEL vendor="Red Hat, Inc." …', '0 B'], ['(ubi9 base layer)', i.size]];
+      print(pad('ID', 14) + pad('CREATED', 13) + pad('CREATED BY', 55) + pad('SIZE', 10) + 'COMMENT');
+      H.forEach(function (h, n) { print(pad(n === 0 ? i.id : '<missing>', 14) + pad(i.created, 13) + pad(trunc(h[0], 53), 55) + pad(h[1], 10)); });
+      return true;
+    };
+    function imagePrune(args) {
+      var all = args.indexOf('-a') > -1 || args.indexOf('--all') > -1;
+      var used = {}; S.ctrs.forEach(function (c) { used[S.images[c.image] ? S.images[c.image].id : ''] = true; });
+      var gone = Object.keys(S.images).filter(function (k) { var i = S.images[k]; return !used[i.id] && (all || i.tag === '<none>'); });
+      if (!all && !gone.length) note('Nothing to prune: there are no dangling (untagged) images. Add -a to remove every image no container is using.');
+      var ids = {}; gone.forEach(function (k) { ids[S.images[k].id] = true; delete S.images[k]; });
+      Object.keys(ids).forEach(function (id) { print(id + hex(52)); });
+      return true;
+    }
+    function inspectImage(i, fmt) {
+      var F = { '.Id': i.id + i.digest.slice(19, 71), '.Digest': i.digest, '.RepoTags': '[' + Object.keys(S.images).filter(function (k) { return S.images[k].id === i.id && S.images[k].tag !== '<none>'; }).join(' ') + ']', '.RepoDigests': '[' + i.repo + '@' + i.digest + ']', '.Size': i.size, '.Config.User': i.meta.kind === 'httpd' ? '1001' : '', '.Config.Cmd': '[' + i.meta.cmd + ']', '.Created': i.created };
+      if (fmt) {
+        var m = fmt.match(/^\{\{\s*([.\w]+)\s*\}\}$/);
+        if (!m || !(m[1] in F)) return err('Error: template: image:1: [simulator] for images try {{.Digest}}, {{.Id}}, {{.RepoTags}}, {{.Config.User}}, {{.Config.Cmd}}');
+        print(F[m[1]]); return true;
+      }
+      ['[', '  {', '    "Id": "' + F['.Id'] + '",', '    "Digest": "' + i.digest + '",', '    "RepoTags": [ ' + F['.RepoTags'].slice(1, -1).split(' ').map(function (t) { return '"' + t + '"'; }).join(', ') + ' ],',
+        '    "Config": { "User": "' + F['.Config.User'] + '", "Cmd": [ "' + i.meta.cmd + '" ]' + (i.meta.kind === 'httpd' ? ', "ExposedPorts": { "8080/tcp": {}, "8443/tcp": {} }' : '') + ', … },', '    "Size": "' + i.size + '",', '    …', '  }', ']'].forEach(function (l) { print(l); });
+      return true;
+    }
+    function skopeo(t) {
+      var sub = t[1], args = t.slice(2), fmt = null;
+      var fi = args.indexOf('--format'); if (fi === -1) fi = args.indexOf('-f');
+      if (fi > -1) { fmt = args[fi + 1]; args.splice(fi, 2); }
+      args = args.filter(function (a) { return a[0] !== '-'; });
+      function ref(x) {
+        if (!x) return { err: 'Error: Exactly one argument expected' };
+        if (x.indexOf('docker://') !== 0) return { err: 'Error: Invalid source name ' + x + ': Invalid image name "' + x + '", expected colon-separated transport:reference   [simulator] prefix registry images with docker://' };
+        return { ref: x.slice(9) };
+      }
+      if (sub === 'inspect') {
+        var a = ref(args[0]); if (a.err) return err(a.err);
+        var r = resolveImage(a.ref, true); if (r.err) return err(r.err);
+        var tags = Object.keys(remoteTags(r.full));
+        var F = { '.Name': r.full, '.Digest': r.digest, '.RepoTags': '[' + tags.join(' ') + ']', '.Created': '2026-09-17T08:12:44Z', '.Architecture': 'amd64', '.Os': 'linux', '.Labels.version': r.meta.version, '.Labels.vendor': 'Red Hat, Inc.' };
+        if (fmt) { var m = fmt.match(/^\{\{\s*([.\w]+)\s*\}\}$/); if (!m || !(m[1] in F)) return err('Error: template: [simulator] try {{.Digest}}, {{.RepoTags}}, {{.Created}}, {{.Labels.version}}'); print(F[m[1]]); return true; }
+        ['{', '    "Name": "' + r.full + '",', '    "Digest": "' + r.digest + '",', '    "RepoTags": [', '        ' + tags.map(function (x) { return '"' + x + '"'; }).join(',\n        '), '    ],', '    "Created": "' + F['.Created'] + '",',
+          '    "Labels": {', '        "name": "' + r.full.split('/').slice(1).join('/') + '",', '        "vendor": "Red Hat, Inc.",', '        "version": "' + r.meta.version + '",', '        …', '    },', '    "Architecture": "amd64",', '    "Os": "linux",', '    "Layers": [ "sha256:' + hex(12) + '…", … ],', '    …', '}'].forEach(function (l) { l.split('\n').forEach(function (x) { print(x); }); });
+        note('Skopeo read this from the registry. Nothing was added to local storage; podman images will not show it.');
+        return true;
+      }
+      if (sub === 'list-tags') {
+        var b = ref(args[0]); if (b.err) return err(b.err);
+        var p = parseRef(b.ref); if (p.tag) return err('Error: Invalid image name "' + b.ref + '", expected a repository without a tag or digest');
+        var chk = resolveImage(b.ref + ':' + (Object.keys(remoteTags(p.base))[0] || 'latest'), true); if (chk.err) return err(chk.err.replace(/:[^:/]*: reading manifest.*/, ': name unknown'));
+        print('{'); print('    "Repository": "' + p.base + '",'); print('    "Tags": [');
+        var tl = Object.keys(remoteTags(p.base)); tl.forEach(function (x, n) { print('        "' + x + '"' + (n < tl.length - 1 ? ',' : '')); }); print('    ]'); print('}');
+        return true;
+      }
+      if (sub === 'copy') {
+        var s1 = ref(args[0]), s2 = ref(args[1]); if (s1.err) return err(s1.err); if (!args[1]) return err('Error: Exactly two arguments expected'); if (s2.err) return err(s2.err.replace('source', 'destination'));
+        var src = resolveImage(s1.ref, true); if (src.err) return err(src.err);
+        var dst = qualifyTarget(s2.ref);
+        var e = regWrite(dst.full, dst.tag, { digest: src.digest, meta: src.meta }); if (e) return err(e);
+        print('Getting image source signatures'); print('Copying blob ' + src.digest.slice(23, 35) + ' done'); print('Copying config ' + src.id + ' done'); print('Writing manifest to image destination');
+        note('The image went straight from one registry to the other. It never touched local storage.');
+        return true;
+      }
+      return err('Error: unrecognized command `skopeo ' + (sub || '') + '`   [simulator] supported: inspect, list-tags, copy');
+    }
+
+  
+    function help() {
+      ['Supported in this simulator:',
+        '  podman run [-d] [-it] [--rm] [--name N] [-p H:C] [-e K=V] [--network N] [-m SIZE] IMAGE [CMD...]',
+        '  podman create | start | stop | restart | kill | rm [-f] | ps [-a] [-q]',
+        '  podman logs [-f] [--tail N] | exec [-it] NAME CMD | inspect [--format \'{{...}}\'] | port | cp',
+        '  podman pull | images [--digests] | rmi | tag | push | history | save -o | load -i | image prune [-a]',
+        '  podman login | logout | network ls|create|rm|inspect | version',
+        '  skopeo inspect [--format \'{{.Digest}}\'] docker://IMAGE | skopeo list-tags docker://REPO | skopeo copy docker://SRC docker://DEST',
+        '  curl http://localhost:PORT     ls     cat index.html     clear     help',
+        'Images: ' + Object.keys(IMG).join(', ')].forEach(function (l) { print(l, 'note'); });
+    }
+  
+    function exec(line) {
+      var t = tokenize(line); if (!t.length) return null;
+      if (t[0] === 'sudo') { note('This terminal is rootless on purpose. Root and your user keep separate images and containers, so running sudo podman here would look like everything vanished. Drop the sudo.'); return false; }
+      if (t[0] === 'clear') { logEl.textContent = ''; return null; }
+      if (t[0] === 'help') { help(); return null; }
+      if (t[0] === 'docker') { note('Close, but this is Podman. The commands are the same: replace docker with podman.'); return false; }
+      if (t[0] === 'curl') { var u = t.slice(1).filter(function (x) { return x[0] !== '-'; })[0]; if (!u) return err('curl: try \'curl --help\' for more information'); var r = curl('host', u); show(r); return !r.err; }
+      if (t[0] === 'ls') { print(Object.keys(S.files).join('  ')); return true; }
+      if (t[0] === 'cat') { if (S.files[t[1]] != null) { print(S.files[t[1]]); return true; } return err('cat: ' + (t[1] || '') + ': No such file or directory'); }
+      if (t[0] === 'whoami') { print('student'); return true; }
+      if (t[0] === 'hostname') { print('workstation.lab.example.com'); return true; }
+      if (t[0] === 'skopeo') return skopeo(t);
+      if (t[0] === 'rm' && S.files[t[1]] != null) { delete S.files[t[1]]; delete S.archives[t[1]]; return true; }
+      if (t[0] !== 'podman') return err('bash: ' + t[0] + ': command not found   [simulator] type help');
+      if (t[1] === '--version' || t[1] === '-v') { print('podman version 4.9.4-rhel'); return true; }
+      if (!t[1]) { help(); return null; }
+      if (!P[t[1]]) return err('Error: unrecognized command `podman ' + t[1] + '`\nTry \'podman --help\' for more information');
+      return (t[1] === 'image' && t[2] === 'prune' ? imagePrune(t.slice(3)) : P[t[1]](t.slice(2)));
+    }
+  
+    /* missions */
+    var api = { S: function () { return S; }, find: find };
+    var M = cfg.missions(api);
+    NETW.state.sim = NETW.state.sim || {};
+    var mList = document.getElementById('missions'), mCount = document.getElementById('m-count');
+    M.forEach(function (m, i) {
+      var li = el('li'); li.id = 'm' + i;
+      var row = el('div', { class: 'mt' }); row.appendChild(el('span', null, m.t)); row.appendChild(el('span', { class: 'st' }, 'To do'));
+      var d = el('details'); d.appendChild(el('summary', null, 'Show hint'));
+      var pre = el('code'); pre.textContent = m.h; pre.style.whiteSpace = 'pre-wrap'; d.appendChild(pre);
+      li.appendChild(row); li.appendChild(d); mList.appendChild(li);
+    });
+    function paintM(newIdx) {
+      var n = 0;
+      M.forEach(function (m, i) { var on = !!NETW.state.sim['m' + i]; if (on) n++; var li = document.getElementById('m' + i); li.classList.toggle('ok', on); li.querySelector('.st').textContent = on ? 'Done' : 'To do'; });
+      mCount.textContent = n + ' of ' + M.length + ' missions done.' + (n === M.length ? ' All done. ' + (cfg.doneMsg || '') + '' : '');
+      if (newIdx != null) NETW.announce('Mission ' + (newIdx + 1) + ' complete. ' + n + ' of ' + M.length + ' done.');
+    }
+    function checkM(line, ok) {
+      var norm = line.trim().replace(/\s+/g, ' ');
+      M.forEach(function (m, i) {
+        if (NETW.state.sim['m' + i]) return;
+        var prevDone = i === 0 || NETW.state.sim['m' + (i - 1)];
+        if (prevDone && m.ok(norm, ok)) { NETW.state.sim['m' + i] = true; NETW.save(); print('Mission ' + (i + 1) + ' complete.', 'good'); paintM(i); }
+      });
+    }
+  
+    function submit() {
+      var line = inEl.value; inEl.value = '';
+      if (!line.trim()) return;
+      hist.push(line); hpos = hist.length;
+      echoCmd(line);
+      var ok = exec(line);
+      if (ok !== null) checkM(line, ok !== false);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    inEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); submit(); }
+      else if (e.key === 'ArrowUp') { if (hpos > 0) { hpos--; inEl.value = hist[hpos]; } e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { if (hpos < hist.length - 1) { hpos++; inEl.value = hist[hpos]; } else { hpos = hist.length; inEl.value = ''; } e.preventDefault(); }
+    });
+    document.getElementById('t-run').addEventListener('click', function () { submit(); inEl.focus(); });
+    document.getElementById('t-clear').addEventListener('click', function () { logEl.textContent = ''; inEl.focus(); });
+    document.getElementById('t-reset').addEventListener('click', function () {
+      S = fresh(); logEl.textContent = ''; NETW.state.sim = {}; NETW.save(); paintM(); greet(); NETW.announce('Lab reset. All containers, images and missions cleared.'); inEl.focus();
+    });
+    function greet() { note(cfg.intro || 'Rootless Podman practice terminal. Type help for the command list, or start with mission 1.'); }
+    greet(); paintM();
+    return api;
+  }
+  return { tokenize: tokenize, parseRun: parseRun, create: create };
+})();
+(function () {
+  'use strict';
+  NETW.init();
+  var el = NETW.el;
+
+  var tokenize = NETWSIM.tokenize, parseRun = NETWSIM.parseRun;
+  /* ================= flag decoder ================= */
+  (function () {
+    var inp = document.getElementById('dec-in'), out = document.getElementById('dec-out');
+    var EXPL = {
+      detach: 'Run in the background. Podman prints the container ID and gives your prompt back.',
+      interactive: 'Keep standard input open so you can type into the container.',
+      tty: 'Allocate a pseudo-terminal, so programs like bash behave like an interactive shell.',
+      it: 'Interactive plus a terminal. The usual way to get a shell inside a container.',
+      dit: 'Detached, interactive and with a terminal. Keeps a shell alive in the background so you can attach later.',
+      rm: 'Delete the container automatically when its main process exits.',
+      memory: 'Set a cgroup memory limit. Going over it gets the container killed (exit code 137).',
+      volume: 'Mount storage into the container. Covered in Week 5.',
+      user: 'Run the main process as this user instead of the image default.'
+    };
+    function add(term, desc, bad) { out.appendChild(el('dt', null, term)); out.appendChild(el('dd', bad ? { class: 'bad' } : null, desc)); }
+    function render() {
+      out.textContent = '';
+      var t = tokenize(inp.value.trim());
+      if (!t.length) { add('(empty)', 'Type a command above.'); return; }
+      if (t[0] === 'sudo') { add('sudo', 'Runs Podman as root. Root has separate image and container storage from your user, and this course works rootless.', true); t.shift(); }
+      if (t[0] !== 'podman' || t[1] !== 'run') { add(t.slice(0, 2).join(' '), 'This decoder explains podman run commands. Start with: podman run', true); return; }
+      add('podman run', 'Create a new container from an image and start it.');
+      var r = parseRun(t.slice(2));
+      r.parts.forEach(function (p) {
+        var d = EXPL[p.kind];
+        if (p.kind === 'name') d = 'Name the container "' + p.val + '" so you can refer to it in other commands.';
+        if (p.kind === 'env') d = 'Set environment variable ' + p.val.split('=')[0] + (p.val.indexOf('=') > -1 ? ' to "' + p.val.split('=').slice(1).join('=') + '"' : ' from your shell\u2019s value') + ' inside the container.';
+        if (p.kind === 'network') d = 'Attach to network "' + p.val + '". On a user-defined network, other containers can reach this one by name.';
+        if (p.kind === 'publish') {
+          var bits = p.val.split(':');
+          if (bits.length === 1) d = 'Publish container port ' + bits[0] + ' on a random free host port. Find it with podman port.';
+          else {
+            var h = bits[bits.length - 2], c = bits[bits.length - 1];
+            d = 'Traffic to host port ' + h + ' is forwarded to port ' + c + ' inside the container.' + (Number(h) < 1024 ? ' Warning: host ports below 1024 fail for rootless containers.' : '');
+          }
+        }
+        var pb = p.val ? p.val.split(':') : [];
+        add(p.tok, d, p.kind === 'publish' && pb.length > 1 && Number(pb[pb.length - 2]) < 1024);
+      });
+      if (r.err) { add(r.badTok || '(missing)', r.err.replace('Error: ', 'Podman would stop here: ') + '.', true); return; }
+      var img = r.image;
+      var fq = /^[^/]+[.:][^/]*\//.test(img) || img.indexOf('localhost/') === 0;
+      add(img, 'The image to run.' + (fq ? ' Fully qualified: registry, namespace, repository' + (/:[^/]+$/.test(img) ? ' and tag.' : ', with the tag defaulting to latest.') : ' This is a short name. Podman will search its configured registries, which can be ambiguous. Prefer the full registry path.'), !fq);
+      if (r.cmd.length) add(r.cmd.join(' '), 'Run this command instead of the image\u2019s default command. The container exits when it finishes.');
+      else add('(no command)', 'The image\u2019s default command runs.');
+    }
+    inp.addEventListener('input', render);
+    render();
+  })();
+
+  /* ================= lifecycle ================= */
+  (function () {
+    var st = 'none', out = document.getElementById('lc-out');
+    var OPS = {
+      create: { from: ['none'], to: 'created', msg: 'The container exists with its writable layer and settings, but no process has started.', bad: 'A container named demo already exists. Remove it first, or choose another name.' },
+      start: { from: ['created', 'exited'], to: 'running', msg: 'The main process is running.', bad: 'Nothing to start in this state.' },
+      pause: { from: ['running'], to: 'paused', msg: 'Every process in the container is frozen by the cgroup freezer.', bad: 'Error: "demo" is not running, can\u2019t pause: container state improper' },
+      unpause: { from: ['paused'], to: 'running', msg: 'The processes resume exactly where they left off.', bad: 'Error: "demo" is not paused, can\u2019t unpause: container state improper' },
+      stop: { from: ['running', 'paused'], to: 'exited', msg: 'SIGTERM sent, then SIGKILL if needed after 10 seconds. Status: Exited (0). Logs and the writable layer are kept.', bad: 'Already stopped. podman stop just prints the name and does nothing.' },
+      kill: { from: ['running', 'paused'], to: 'exited', msg: 'SIGKILL sent immediately. Status: Exited (137). The app had no chance to shut down cleanly.', bad: 'Error: can only kill running containers: container state improper' },
+      rm: { from: ['created', 'exited'], to: 'none', msg: 'Removed, along with its writable layer and logs.', bad: 'Error: cannot remove container as it is running - running or paused containers cannot be removed without force: container state improper' },
+      rmf: { from: ['created', 'exited', 'running', 'paused'], to: 'none', msg: 'Force removal stops the container first if needed, then removes it.', bad: 'Error: no container with name or ID "demo" found: no such container' }
+    };
+    function paint() {
+      document.querySelectorAll('#lc-states li').forEach(function (li) {
+        if (li.getAttribute('data-st') === st) li.setAttribute('aria-current', 'true'); else li.removeAttribute('aria-current');
+      });
+    }
+    document.querySelectorAll('#lc-actions button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k = b.getAttribute('data-op'), op = OPS[k];
+        var cmd = 'podman ' + (k === 'create' ? 'create --name demo registry.access.redhat.com/ubi9/httpd-24' : (k === 'rmf' ? 'rm -f demo' : k + ' demo'));
+        out.textContent = '';
+        out.appendChild(el('code', null, '$ ' + cmd)); out.appendChild(el('br'));
+        if (k === 'start' && st === 'running') { out.appendChild(document.createTextNode('Already running. podman start prints the name and changes nothing.')); return; }
+        if (k === 'rm' && st === 'none') { out.appendChild(document.createTextNode(OPS.rmf.bad)); return; }
+        if (op.from.indexOf(st) === -1) { out.appendChild(document.createTextNode(op.bad)); return; }
+        st = op.to; paint();
+        out.appendChild(document.createTextNode(op.msg));
+      });
+    });
+    paint();
+  })();
+
+  /* ================= practice terminal ================= */
+  NETWSIM.create({
+    intro: 'Rootless Podman practice terminal. A file named index.html is in your home directory. Type help for the command list, or start with mission 1.',
+    doneMsg: 'You\u2019re ready for the Chapter 2 lab.',
+    missions: function (api) {
+    var HTTPD = 'registry.access.redhat.com/ubi9/httpd-24:latest';
+    return [
+    { t: 'Pull the Apache HTTP Server image', h: 'podman pull registry.access.redhat.com/ubi9/httpd-24', ok: function () { return !!api.S().images[HTTPD]; } },
+    { t: 'Run it in the background as web, with host port 8080 sent to container port 8080', h: 'podman run -d --name web -p 8080:8080 registry.access.redhat.com/ubi9/httpd-24', ok: function () { var c = api.find('web'); return c && c.state === 'running' && c.kind === 'httpd' && c.ports.some(function (p) { return p.h === 8080 && p.c === 8080; }); } },
+    { t: 'Prove the server answers from the host', h: 'curl http://localhost:8080', ok: function (l, ok) { return ok && /^curl\s/.test(l) && /localhost:8080|127\.0\.0\.1:8080/.test(l); } },
+    { t: 'Serve your own page: copy index.html into the web root and fetch it again', h: 'podman cp index.html web:/var/www/html/  then  curl http://localhost:8080', ok: function (l, ok) { var c = api.find('web'); return ok && c && c.files['index.html'] != null && /^curl\s/.test(l); } },
+    { t: 'Read the web container\u2019s logs and find your requests', h: 'podman logs web', ok: function (l, ok) { return ok && /^podman logs\b.*\bweb\b/.test(l); } },
+    { t: 'Ask the container who it runs as, using exec', h: 'podman exec web whoami', ok: function (l, ok) { return ok && /^podman exec\b.*\bweb\b.*\b(whoami|id)\b/.test(l); } },
+    { t: 'Print only the web container\u2019s status with inspect and a format template', h: 'podman inspect --format \'{{.State.Status}}\' web', ok: function (l, ok) { return ok && /^podman inspect\b/.test(l) && /--format|-f\b/.test(l) && /State\.Status/.test(l); } },
+    { t: 'Create a network named app-net, run a second httpd named web2 on it, and reach web2 by name from another container on the same network', h: 'podman network create app-net\npodman run -d --name web2 --network app-net registry.access.redhat.com/ubi9/httpd-24\npodman run --rm --network app-net registry.access.redhat.com/ubi9/ubi curl -s http://web2:8080', ok: function (l, ok) { return ok && /curl/.test(l) && /web2:8080/.test(l) && /app-net/.test(l + (api.find('web2') ? api.find('web2').network : '')); } },
+    { t: 'Clean up: stop and remove web, then confirm with ps -a', h: 'podman stop web\npodman rm web\npodman ps -a', ok: function (l) { return /^podman (ps|container ls)\b.*(-a|--all)/.test(l) && !api.find('web') && NETW.state.sim && NETW.state.sim['m1']; } }
+  ];
+    }
+  });
+
+
+  /* quiz */
+  NETW.quiz(document.getElementById('quiz'), [
+    { q: 'You run podman run -d registry.access.redhat.com/ubi9/ubi, but podman ps shows nothing. Why?',
+      choices: [{ t: 'The default command is a shell that exits immediately with no terminal, so the container exited', ok: true }, { t: 'Detached containers only appear in podman images' }, { t: 'The image failed to pull silently' }, { t: 'Rootless containers are hidden from podman ps' }],
+      why: 'A container lives only as long as its main process. podman ps -a would show it as Exited (0).' },
+    { q: 'In -p 9090:8080, which number is the port inside the container?',
+      choices: [{ t: '8080', ok: true }, { t: '9090' }, { t: 'Both; they must match' }, { t: 'Neither; it sets a range' }],
+      why: 'The format is host:container. Traffic to host port 9090 is forwarded to port 8080 in the container.' },
+    { q: 'As a regular user you run podman run -d -p 80:8080 with the httpd image. What happens?',
+      choices: [{ t: 'It fails, because rootless containers cannot publish host ports below 1024 by default', ok: true }, { t: 'It works, but only over IPv6' }, { t: 'Podman silently uses port 8080 instead' }, { t: 'It works because the container runs as root inside' }],
+      why: 'Ports below net.ipv4.ip_unprivileged_port_start (1024 by default) need privileges your user lacks. Choose a host port of 1024 or higher.' },
+    { q: 'Which command runs a new process inside a container that is already running?',
+      choices: [{ t: 'podman exec', ok: true }, { t: 'podman run' }, { t: 'podman start' }, { t: 'podman attach' }],
+      why: 'podman exec starts an additional process in the running container\u2019s namespaces. podman run always creates a new container.' },
+    { q: 'What is the difference between podman stop and podman kill?',
+      choices: [{ t: 'stop sends SIGTERM and waits before SIGKILL; kill sends SIGKILL right away', ok: true }, { t: 'stop pauses the container; kill removes it' }, { t: 'kill keeps the logs and stop deletes them' }, { t: 'There is no difference' }],
+      why: 'stop gives the app a grace period (10 seconds by default) to shut down cleanly. kill ends it immediately, usually with exit code 137.' },
+    { q: 'Two containers on the default podman network try to reach each other by container name, and name resolution fails. What\u2019s the best fix?',
+      choices: [{ t: 'Create a network with podman network create and attach both containers to it', ok: true }, { t: 'Publish both containers\u2019 ports with -p' }, { t: 'Hard-code each container\u2019s IP address' }, { t: 'Run both containers as root' }],
+      why: 'User-defined networks have DNS enabled, so containers can use each other\u2019s names. The default network does not resolve names, and IP addresses change when containers are recreated.' },
+    { q: 'Which command prints only whether the container named db is running, exited or created?',
+      choices: [{ t: 'podman inspect --format \'{{.State.Status}}\' db', ok: true }, { t: 'podman logs --status db' }, { t: 'podman ps --name db --short' }, { t: 'podman port db' }],
+      why: 'inspect with a Go template pulls a single field from the JSON. The other commands either don\u2019t exist in that form or return something else.' },
+    { q: 'You try podman rm web and get "cannot remove container ... as it is running". Which commands would remove it?',
+      choices: [{ t: 'podman stop web, then podman rm web; or podman rm -f web', ok: true }, { t: 'podman rmi web' }, { t: 'podman kill web --remove-image' }, { t: 'podman network rm web' }],
+      why: 'A running container must be stopped first, or removed with force. rmi removes images, not containers.' }
+  ]);
+})();
+</script>
+</body>
+</html>

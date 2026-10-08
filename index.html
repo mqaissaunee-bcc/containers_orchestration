@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NETW 112 Containers &amp; Orchestration | Course home</title>
+<meta name="description" content="Online companion text for NETW 112 at Brookdale Community College: containers with Podman and application administration on Red Hat OpenShift, alongside the Red Hat Academy DO188 and DO180 courses.">
+<style>:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#E9EEF1; --ink:#17212B; --muted:#4A5866;
+  --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0;
+  --signal:#7E4C00; --signal-bg:#FFF3DC; --signal-line:#D9A24A;
+  --ok:#1C6A39; --ok-bg:#E3F4E8; --bad:#A1252A; --bad-bg:#FBE6E6;
+  --term-bg:#0F161D; --term-fg:#D3DFE7; --term-dim:#8FA3B1; --term-prompt:#7FD3C9; --term-err:#FF9C9C; --term-ok:#A8E6B5;
+  --steel-a:#C7D2DA; --steel-b:#B7C4CE;
+  --sans:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem; --s7:3rem; --s8:4.5rem;
+  --measure:68ch; --radius-sm:4px; --radius:8px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0E141A; --surface:#151E27; --surface-2:#1C2833; --ink:#E2E9EF; --muted:#A3B2BF;
+    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A;
+    --signal:#F0B65C; --signal-bg:#2A2214; --signal-line:#8A6526;
+    --ok:#74D19B; --ok-bg:#15301F; --bad:#F2898C; --bad-bg:#3A1C1E;
+    --term-bg:#080C10; --steel-a:#273440; --steel-b:#22303B;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:1rem;line-height:1.55}
+a{color:var(--accent);text-underline-offset:.15em}
+a:hover{color:var(--accent-strong)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:2px}
+.skip-link{position:absolute;left:var(--s4);top:-4rem;background:var(--accent);color:var(--accent-ink);padding:var(--s3) var(--s4);z-index:100;border-radius:var(--radius-sm);font-weight:600}
+.skip-link:focus{top:var(--s4)}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+img,svg{max-width:100%}
+code{overflow-wrap:anywhere}
+pre code,pre .c{overflow-wrap:normal}
+
+/* top bar */
+.topbar{border-bottom:1px solid var(--line);background:var(--surface)}
+.topbar-inner{max-width:76rem;margin:0 auto;padding:var(--s2) var(--s4);display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;justify-content:space-between}
+.brand{font-weight:600;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;gap:var(--s2);min-height:44px}
+.brand-code{font-family:var(--mono);font-size:.85rem;background:var(--ink);color:var(--surface);padding:.1rem .4rem;border-radius:var(--radius-sm)}
+.weeknav{display:flex;gap:var(--s2);flex-wrap:wrap}
+.weeknav a,.weeknav span{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);text-decoration:none;font-size:.9rem}
+.weeknav span{color:var(--muted)}
+
+/* module masthead */
+.masthead{max-width:76rem;margin:0 auto;padding:var(--s7) var(--s4) var(--s5)}
+.masthead .weekno{font-family:var(--mono);color:var(--accent);font-size:1rem;margin:0}
+.masthead h1{font-size:clamp(2rem,5vw,3.25rem);line-height:1.08;margin:var(--s2) 0 var(--s4);letter-spacing:-.015em;font-weight:600;max-width:20ch}
+.deck{font-family:var(--serif);font-size:1.2rem;line-height:1.6;max-width:var(--measure);color:var(--muted);margin:0 0 var(--s5)}
+.meta{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s6);margin:0;padding:0}
+.meta div{min-width:9rem}
+.meta dt{font-size:.8rem;color:var(--muted)}
+.meta dd{margin:0;font-weight:600}
+.progress-wrap{margin-top:var(--s5);max-width:28rem}
+.progress-label{font-size:.85rem;color:var(--muted);display:flex;justify-content:space-between}
+.bar{height:10px;background:var(--surface-2);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* layout */
+.layout{max-width:76rem;margin:0 auto;padding:0 var(--s4) var(--s8);display:grid;grid-template-columns:1fr;gap:var(--s6)}
+@media (min-width:62rem){.layout{grid-template-columns:15rem minmax(0,1fr)}}
+.toc{font-size:.92rem}
+.toc details{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:var(--s2) var(--s3)}
+.toc summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+@media (min-width:62rem){
+  .toc{position:sticky;top:var(--s4);align-self:start;max-height:calc(100vh - 2rem);overflow:auto}
+  .toc details{border:0;background:transparent;padding:0}
+  .toc summary{pointer-events:none;list-style:none}
+  .toc summary::-webkit-details-marker{display:none}
+}
+.toc ol{list-style:none;margin:var(--s2) 0 0;padding:0;counter-reset:t}
+.toc li{counter-increment:t}
+.toc a{display:flex;gap:var(--s2);align-items:baseline;padding:var(--s2);min-height:40px;text-decoration:none;color:var(--ink);border-left:3px solid transparent}
+.toc a::before{content:counter(t);font-family:var(--mono);font-size:.8rem;color:var(--muted);min-width:1.4em}
+.toc a[aria-current="true"]{border-left-color:var(--accent);background:var(--accent-soft)}
+.toc .tick{margin-left:auto;color:var(--ok);font-weight:700}
+
+/* content */
+main{min-width:0}
+.unit{padding:var(--s6) 0 var(--s5);border-top:1px solid var(--line);scroll-margin-top:var(--s4)}
+.unit:first-child{border-top:0;padding-top:0}
+.unit>h2{font-size:clamp(1.45rem,3vw,1.9rem);line-height:1.2;margin:0 0 var(--s4);font-weight:600;letter-spacing:-.01em;display:flex;gap:var(--s3);align-items:baseline}
+.unit>h2 .n{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:500}
+.unit h3{font-size:1.15rem;margin:var(--s6) 0 var(--s2);font-weight:600}
+.prose{font-family:var(--serif);font-size:1.075rem;line-height:1.7;max-width:var(--measure)}
+.prose p,.prose ul,.prose ol{margin:0 0 var(--s4)}
+.prose li{margin-bottom:var(--s2)}
+.prose code,.inline-code{overflow-wrap:anywhere;font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:.08em .32em;border-radius:3px}
+.prose strong{font-family:var(--sans);font-weight:600;font-size:.97em}
+.objectives{max-width:var(--measure);padding-left:1.25rem;font-family:var(--serif);font-size:1.075rem;line-height:1.65}
+.objectives li{margin-bottom:var(--s2)}
+
+/* callouts */
+.callout{max-width:var(--measure);border-left:4px solid var(--accent);background:var(--surface);padding:var(--s3) var(--s4);margin:var(--s5) 0;border-radius:0 var(--radius) var(--radius) 0;font-size:.98rem}
+.callout>p{margin:0 0 var(--s2)}.callout>p:last-child{margin:0}
+.callout .label{font-weight:600;display:block;margin-bottom:var(--s1)}
+.callout.exam{border-left-color:var(--signal-line);background:var(--signal-bg)}
+.callout.exam .label{color:var(--signal)}
+.callout.warn{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.warn .label{color:var(--bad)}
+
+/* command blocks */
+.cmd{position:relative;max-width:var(--measure);margin:var(--s4) 0;background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s4);padding-right:5.5rem;font-family:var(--mono);font-size:.88rem;line-height:1.55;overflow-x:auto;white-space:pre}
+.cmd .p{color:var(--term-prompt);user-select:none}
+.cmd .o{color:var(--term-dim)}
+.copy-btn{position:absolute;top:var(--s2);right:var(--s2);min-height:36px;min-width:44px;padding:0 var(--s3);background:transparent;color:var(--term-fg);border:1px solid var(--term-dim);border-radius:var(--radius-sm);font-family:var(--sans);font-size:.8rem;cursor:pointer}
+.copy-btn:hover{border-color:var(--term-prompt);color:var(--term-prompt)}
+
+/* tables */
+.table-wrap{overflow-x:auto;max-width:100%;margin:var(--s4) 0}
+table{border-collapse:collapse;min-width:32rem;font-size:.94rem}
+th,td{text-align:left;padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;background:var(--surface-2)}
+td code{font-family:var(--mono);font-size:.86rem}
+
+/* buttons */
+.btn{min-height:44px;min-width:44px;padding:0 var(--s4);border-radius:var(--radius-sm);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:600 .95rem var(--sans);cursor:pointer}
+.btn:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.done-row{margin-top:var(--s5);display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
+.done-btn[aria-pressed="true"]{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.done-btn[aria-pressed="true"]::before{content:"✓ "}
+
+/* interactive frame */
+.lab-frame{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:var(--s5);margin:var(--s5) 0}
+.lab-frame>h3:first-child{margin-top:0}
+.hint{color:var(--muted);font-size:.92rem;max-width:var(--measure)}
+
+/* quiz */
+.quiz-q{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:var(--s4);margin:0 0 var(--s4);background:var(--surface);max-width:46rem}
+.quiz-q legend{overflow-wrap:anywhere;max-width:100%;font-weight:600;padding:0 var(--s2);font-size:1.02rem}
+.quiz-q .qn{font-family:var(--mono);color:var(--accent);margin-right:var(--s2)}
+.choice{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s2) var(--s3);min-height:44px;border-radius:var(--radius-sm);cursor:pointer}
+.choice:hover{background:var(--surface-2)}
+.choice>span{overflow-wrap:anywhere}
+.choice input{margin-top:.3rem;width:1.1rem;height:1.1rem;flex:none}
+.choice.is-right{background:var(--ok-bg)}
+.choice.is-wrong{background:var(--bad-bg)}
+.feedback{margin-top:var(--s3);font-size:.96rem}
+.feedback .verdict{font-weight:700}
+.feedback.right .verdict{color:var(--ok)}
+.feedback.wrong .verdict{color:var(--bad)}
+.quiz-summary{font-weight:600;margin:var(--s3) 0}
+
+/* lab bridge */
+.bridge{border:2px solid var(--signal-line);background:var(--signal-bg);border-radius:var(--radius);padding:var(--s5);max-width:52rem}
+.bridge h3{margin-top:0;color:var(--signal)}
+.bridge ol,.bridge ul{font-family:var(--serif);font-size:1.05rem;line-height:1.65;padding-left:1.25rem}
+.checklist{list-style:none;padding:0!important}
+.checklist li{display:flex;gap:var(--s3);align-items:flex-start;margin-bottom:var(--s2)}
+.checklist input{width:1.2rem;height:1.2rem;margin-top:.35rem;flex:none}
+
+/* footer */
+.site-foot{border-top:1px solid var(--line);background:var(--surface);font-size:.88rem;color:var(--muted)}
+.site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
+.site-foot p{margin:0 0 var(--s2);max-width:80ch}
+@media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+
+.hero{max-width:76rem;margin:0 auto;padding:var(--s6) var(--s4) var(--s5)}
+.hero .code{font-family:var(--mono);color:var(--accent);margin:0}
+.hero h1{font-size:clamp(2.25rem,6vw,4rem);line-height:1.02;letter-spacing:-.02em;margin:var(--s2) 0 var(--s4);font-weight:600;max-width:16ch}
+.hero .deck{max-width:60ch}
+.resume{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;margin:var(--s5) 0 0}
+.resume a.btn{display:inline-flex;align-items:center;text-decoration:none}
+.resume .hint{margin:0}
+.wrap{max-width:76rem;margin:0 auto;padding:0 var(--s4)}
+.block{padding:var(--s7) 0;border-top:1px solid var(--line)}
+.block>h2{font-size:clamp(1.5rem,3vw,2rem);margin:0 0 var(--s3);font-weight:600;letter-spacing:-.01em}
+.block>.lead{font-family:var(--serif);font-size:1.1rem;line-height:1.65;max-width:var(--measure);color:var(--muted);margin:0 0 var(--s5)}
+/* bay plan */
+.bays{display:grid;gap:var(--s6)}
+.bay-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:var(--s2);margin-bottom:var(--s3);border-bottom:2px solid var(--ink);padding-bottom:var(--s2)}
+.bay-head h3{margin:0;font-size:1.15rem}
+.bay-head p{margin:0;color:var(--muted);font-size:.9rem}
+.boxes{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr));gap:var(--s3)}
+.box{display:flex;flex-direction:column;height:100%;min-height:10.5rem;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);text-decoration:none;overflow:hidden;position:relative}
+.box::before{content:"";display:block;height:14px;background:repeating-linear-gradient(90deg,var(--steel-a) 0 6px,var(--steel-b) 6px 12px);border-bottom:1px solid var(--line)}
+.box.practical::before{background:repeating-linear-gradient(90deg,var(--signal-line) 0 6px,var(--signal-bg) 6px 12px)}
+.box .body{padding:var(--s3);display:flex;flex-direction:column;gap:var(--s1);flex:1}
+.box .wk{font:600 1.6rem/1 var(--mono);letter-spacing:-.02em}
+.box .ttl{font-size:.92rem;line-height:1.35;font-weight:500}
+.box .foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:var(--s2);font-size:.78rem;color:var(--muted)}
+.box .tag{font-weight:600}
+.box.practical .tag{color:var(--signal)}
+.box .status{font-weight:600}
+.box .status.done{color:var(--ok)}
+.box .status.prog{color:var(--accent)}
+.box .meter{height:4px;background:var(--surface-2)}
+.box .meter i{display:block;height:100%;background:var(--accent);width:0}
+a.box{border-color:var(--accent)}
+a.box:hover{box-shadow:0 0 0 2px var(--accent)}
+div.box{color:var(--muted)}
+div.box .wk{color:var(--muted)}
+/* steps */
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:var(--s4);grid-template-columns:1fr;counter-reset:s;max-width:62rem}
+@media (min-width:48rem){.steps{grid-template-columns:repeat(3,1fr)}}
+.steps li{counter-increment:s;border-top:3px solid var(--accent);padding-top:var(--s3)}
+.steps li:last-child{border-top-color:var(--signal-line)}
+.steps li::before{content:counter(s);font:600 1.4rem var(--mono);color:var(--accent);display:block}
+.steps li:last-child::before{color:var(--signal)}
+.steps h3{margin:var(--s1) 0 var(--s2);font-size:1.05rem}
+.steps p{margin:0;font-family:var(--serif);line-height:1.6}
+/* grade bar */
+.gbar{display:flex;height:3.25rem;border-radius:var(--radius-sm);overflow:hidden;max-width:52rem;border:1px solid var(--line)}
+.gbar div{display:flex;align-items:center;padding:0 var(--s3);font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden}
+.gbar .g1{flex:50;background:var(--accent);color:var(--accent-ink)}
+.gbar .g2{flex:20;background:var(--signal-bg);color:var(--signal);border-left:1px solid var(--line)}
+.gbar .g3{flex:30;background:var(--surface-2);color:var(--ink);border-left:1px solid var(--line)}
+/* glossary */
+.gl-filter{max-width:28rem;margin-bottom:var(--s4)}
+.gl-filter label{display:block;font-weight:600;margin-bottom:var(--s2)}
+.gl-filter input{width:100%;min-height:44px;padding:0 var(--s3);font:inherit;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)}
+.glossary{display:grid;grid-template-columns:1fr;gap:0 var(--s6);margin:0}
+@media (min-width:56rem){.glossary{grid-template-columns:1fr 1fr}}
+.glossary div{padding:var(--s3) 0;border-bottom:1px solid var(--line);break-inside:avoid}
+.glossary dt{font-weight:600}
+.glossary dt .wkref{font:.78rem var(--mono);color:var(--muted);margin-left:var(--s2);font-weight:400}
+.glossary dd{margin:var(--s1) 0 0;font-family:var(--serif);line-height:1.55;color:var(--muted)}
+.links{columns:2 18rem;padding-left:1.2rem;font-family:var(--serif);line-height:1.8}
+</style>
+</head>
+<body data-module="hub">
+<a href="#main" class="skip-link">Skip to main content</a>
+<div id="sr-status" class="vh" role="status" aria-live="polite"></div>
+
+<header>
+  <div class="topbar"><div class="topbar-inner">
+    <span class="brand"><span class="brand-code">NETW 112</span> Brookdale Community College</span>
+    <nav class="weeknav" aria-label="Page sections"><a href="#weeks">Weeks</a><a href="#outcomes">Outcomes</a><a href="#glossary">Glossary</a></nav>
+  </div></div>
+  <div class="hero">
+    <p class="code">NETW 112</p>
+    <h1>Containers &amp; Orchestration</h1>
+    <p class="deck">Fifteen weeks from your first <code class="inline-code">podman run</code> to operating production applications on Red Hat OpenShift. This site is the course text and practice space; your graded labs happen in the Red Hat Online Learning Environment.</p>
+    <div class="resume" id="resume"></div>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <section class="block" id="weeks" aria-labelledby="weeks-h">
+    <h2 id="weeks-h">The semester</h2>
+    <p class="lead">Two halves, each ending in a hands-on practical. Weeks you can open now are outlined; the rest are being written. Your progress is saved in this browser.</p>
+    <div class="bays">
+      <div>
+        <div class="bay-head"><h3>Part 1: Containers with Podman</h3><p>Weeks 1 to 9, alongside DO188, toward EX188</p></div>
+        <ol class="boxes" id="bay1"></ol>
+      </div>
+      <div>
+        <div class="bay-head"><h3>Part 2: Operating OpenShift</h3><p>Weeks 10 to 15, alongside DO180, toward EX280</p></div>
+        <ol class="boxes" id="bay2"></ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="how-h">
+    <h2 id="how-h">How each week works</h2>
+    <p class="lead">Every week follows the same rhythm, matching the instructor-demo then hands-on-lab pattern of class sessions.</p>
+    <ol class="steps">
+      <li><h3>Read here</h3><p>Short sections explain the concepts and commands, with the reasoning behind them.</p></li>
+      <li><h3>Practice here</h3><p>Simulators, explorers and an ungraded knowledge check let you try ideas safely and as often as you like.</p></li>
+      <li><h3>Lab in the OLE</h3><p>Each week's Lab bridge points you to the matching Red Hat guided exercises and graded lab.</p></li>
+    </ol>
+  </section>
+
+  <section class="block" id="outcomes" aria-labelledby="out-h">
+    <h2 id="out-h">What you'll be able to do</h2>
+    <p class="lead">There are no written exams. Each outcome is demonstrated by performing real tasks in a live lab environment.</p>
+    <div class="table-wrap"><table>
+      <caption class="vh">Course learning outcomes and where they are measured</caption>
+      <thead><tr><th scope="col">Outcome</th><th scope="col">Taught</th><th scope="col">Measured</th></tr></thead>
+      <tbody>
+        <tr><td>1. Run, manage and troubleshoot containers on RHEL using Podman and tools such as Skopeo.</td><td>Weeks 1 to 3, 6</td><td>Midterm practical</td></tr>
+        <tr><td>2. Build custom images with Containerfiles and manage them through public and private registries.</td><td>Weeks 3 and 4</td><td>Midterm practical</td></tr>
+        <tr><td>3. Deploy multi-container apps with Podman Compose, including persistent storage configured correctly for SELinux.</td><td>Weeks 5 and 7</td><td>Midterm practical</td></tr>
+        <tr><td>4. Deploy, configure and manage applications on OpenShift with the web console and the oc CLI, including networking, configuration data, secrets and storage.</td><td>Weeks 8, 10 to 14</td><td>Final practicals</td></tr>
+        <tr><td>5. Keep applications reliable with health probes, resource limits, autoscaling and controlled updates with rollback.</td><td>Weeks 14 and 15</td><td>Final practicals</td></tr>
+      </tbody>
+    </table></div>
+    <h3>How your grade is built</h3>
+    <div class="gbar" role="img" aria-label="Grade weights: laboratory assignments 50 percent, midterm lab practical 20 percent, final lab practicals 30 percent">
+      <div class="g1">Labs 50%</div><div class="g2">Midterm 20%</div><div class="g3">Finals 30%</div>
+    </div>
+    <p class="hint">Weekly OLE labs are graded on completion and correctness. Labs up to one week late earn up to 80% credit, later than that up to 50%. Practical deadlines are firm. See the syllabus for the full policy.</p>
+    <h3>Certification paths</h3>
+    <div class="table-wrap"><table>
+      <caption class="vh">Red Hat certifications this course prepares for</caption>
+      <thead><tr><th scope="col">Exam</th><th scope="col">Certification</th><th scope="col">Where this course helps</th></tr></thead>
+      <tbody>
+        <tr><td><code>EX188</code></td><td>Red Hat Certified Specialist in Containers</td><td>Weeks 1 to 9 prepare you directly.</td></tr>
+        <tr><td><code>EX280</code></td><td>Red Hat Certified OpenShift Administrator</td><td>Weeks 10 to 15 build the foundation; an advanced follow-on course completes the preparation.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="block" id="glossary" aria-labelledby="gl-h">
+    <h2 id="gl-h">Glossary</h2>
+    <p class="lead">Terms you'll meet this semester, with the week that introduces each one.</p>
+    <div class="gl-filter"><label for="gl-q">Filter terms</label><input id="gl-q" type="search" autocomplete="off" spellcheck="false"></div>
+    <p class="hint" id="gl-count" aria-live="polite"></p>
+    <dl class="glossary" id="gl"></dl>
+  </section>
+
+  <section class="block" aria-labelledby="ref-h">
+    <h2 id="ref-h">References and support</h2>
+    <ul class="links">
+      <li><a href="https://docs.podman.io">Podman documentation</a></li>
+      <li><a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux">Red Hat Enterprise Linux documentation</a></li>
+      <li><a href="https://docs.openshift.com">OpenShift documentation</a></li>
+      <li><a href="https://kubernetes.io/docs">Kubernetes documentation</a></li>
+      <li><a href="https://www.brookdalecc.edu/academic-tutoring/">Brookdale academic tutoring</a></li>
+      <li><a href="https://www.brookdalecc.edu/support">Brookdale student support services</a></li>
+    </ul>
+    <p class="hint">Need an accessibility accommodation? Contact Brookdale Accessibility Services at 732-224-2730 (voice) or 732-842-4211 (TTY). For accessibility help inside the Red Hat Online Learning Environment, contact Red Hat Academy support.</p>
+  </section>
+</main>
+
+<footer class="site-foot"><div class="inner">
+  <p>Built for <span class="program">NETW 112 Containers &amp; Orchestration</span> · Brookdale Community College · <span class="year">2026</span></p>
+  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat, Red Hat Enterprise Linux and OpenShift are trademarks of Red Hat, Inc.</p>
+</div></footer>
+
+<script>/* NETW 112 shared module runtime. Inlined into every page. */
+var NETW = (function () {
+  'use strict';
+  var MOD = document.body.getAttribute('data-module') || 'hub';
+  var KEY = 'netw112:' + MOD;
+
+  function read(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || null; } catch (e) { return null; }
+  }
+  function write(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage unavailable */ }
+  }
+  var state = read(KEY) || { units: {}, checks: {}, quiz: null, total: 0 };
+  state.units = state.units || {}; state.checks = state.checks || {};
+  function save() { write(KEY, state); }
+
+  function announce(msg) {
+    var r = document.getElementById('sr-status');
+    if (!r) return;
+    r.textContent = '';
+    window.setTimeout(function () { r.textContent = msg; }, 30);
+  }
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function el(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') n.className = attrs[k]; else n.setAttribute(k, attrs[k]);
+    });
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /* ---------- copy buttons ---------- */
+  function initCopy() {
+    document.querySelectorAll('pre.cmd').forEach(function (pre) {
+      var b = el('button', { type: 'button', class: 'copy-btn' }, 'Copy');
+      b.setAttribute('aria-label', 'Copy commands');
+      b.addEventListener('click', function () {
+        var cmds = pre.querySelectorAll('.c');
+        var text = cmds.length ? Array.prototype.map.call(cmds, function (c) { return c.textContent; }).join('\n') : pre.textContent;
+        function ok() { b.textContent = 'Copied'; announce('Commands copied to clipboard'); setTimeout(function () { b.textContent = 'Copy'; }, 1600); }
+        function fallback() {
+          var ta = el('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+          var done = false; try { done = document.execCommand('copy'); } catch (e) { done = false; }
+          document.body.removeChild(ta);
+          if (done) ok(); else { b.textContent = 'Select text'; announce('Copy is blocked here. Select the text and copy it manually.'); }
+        }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
+      });
+      pre.appendChild(b);
+    });
+  }
+
+  /* ---------- units, progress, TOC ---------- */
+  var units = [];
+  function updateProgress() {
+    var done = units.filter(function (u) { return state.units[u.id]; }).length;
+    state.total = units.length; save();
+    var pct = units.length ? Math.round(done / units.length * 100) : 0;
+    var bar = document.getElementById('progress');
+    if (bar) {
+      bar.setAttribute('aria-valuenow', String(pct));
+      bar.querySelector('i').style.width = pct + '%';
+      var lbl = document.getElementById('progress-count');
+      if (lbl) lbl.textContent = done + ' of ' + units.length + ' sections';
+    }
+    document.querySelectorAll('.toc a').forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var t = a.querySelector('.tick');
+      if (state.units[id] && !t) { t = el('span', { class: 'tick' }, '✓'); t.appendChild(el('span', { class: 'vh' }, ' completed')); a.appendChild(t); }
+      if (!state.units[id] && t) a.removeChild(t);
+    });
+  }
+  function initUnits() {
+    document.querySelectorAll('section[data-unit]').forEach(function (s) {
+      units.push(s);
+      var row = el('div', { class: 'done-row' });
+      var b = el('button', { type: 'button', class: 'btn ghost done-btn' });
+      function paint() {
+        var on = !!state.units[s.id];
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.textContent = on ? 'Section complete' : 'Mark section complete';
+      }
+      b.addEventListener('click', function () {
+        state.units[s.id] = !state.units[s.id];
+        if (!state.units[s.id]) delete state.units[s.id];
+        paint(); updateProgress();
+        announce(state.units[s.id] ? 'Section marked complete' : 'Section marked not complete');
+      });
+      paint(); row.appendChild(b); s.appendChild(row);
+    });
+    updateProgress();
+    if ('IntersectionObserver' in window) {
+      var links = {};
+      document.querySelectorAll('.toc a').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting && links[e.target.id]) {
+            Object.keys(links).forEach(function (k) { links[k].removeAttribute('aria-current'); });
+            links[e.target.id].setAttribute('aria-current', 'true');
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px' });
+      units.forEach(function (u) { io.observe(u); });
+    }
+  }
+
+  /* ---------- persistent checklists ---------- */
+  function initChecks() {
+    document.querySelectorAll('input[type=checkbox][data-check]').forEach(function (c) {
+      var k = c.getAttribute('data-check');
+      c.checked = !!state.checks[k];
+      c.addEventListener('change', function () { state.checks[k] = c.checked; save(); });
+    });
+  }
+
+  /* ---------- quiz engine ---------- */
+  function quiz(root, items) {
+    var answered = {}; var correct = 0;
+    var summary = el('p', { class: 'quiz-summary', 'aria-live': 'polite' });
+    items.forEach(function (item, qi) {
+      var fs = el('fieldset', { class: 'quiz-q' });
+      var lg = el('legend'); lg.appendChild(el('span', { class: 'qn' }, String(qi + 1))); lg.appendChild(document.createTextNode(item.q));
+      fs.appendChild(lg);
+      var name = MOD + '-q' + qi;
+      var opts = item.ordered ? item.choices.slice() : shuffle(item.choices);
+      opts.forEach(function (ch, ci) {
+        var id = name + '-' + ci;
+        var lab = el('label', { class: 'choice', for: id });
+        var inp = el('input', { type: 'radio', name: name, id: id });
+        inp.value = ch.ok ? '1' : '0';
+        lab.appendChild(inp); lab.appendChild(el('span', null, ch.t));
+        fs.appendChild(lab);
+      });
+      var btn = el('button', { type: 'button', class: 'btn' }, 'Check answer');
+      var fb = el('div', { class: 'feedback', 'aria-live': 'polite' });
+      btn.addEventListener('click', function () {
+        var pick = fs.querySelector('input:checked');
+        if (!pick) { fb.className = 'feedback wrong'; fb.textContent = 'Choose an answer first.'; return; }
+        var right = pick.value === '1';
+        fs.querySelectorAll('.choice').forEach(function (c) {
+          c.classList.remove('is-right', 'is-wrong');
+          var i = c.querySelector('input');
+          if (i.value === '1') c.classList.add('is-right');
+          else if (i === pick) c.classList.add('is-wrong');
+          i.disabled = true;
+        });
+        fb.className = 'feedback ' + (right ? 'right' : 'wrong'); fb.textContent = '';
+        fb.appendChild(el('span', { class: 'verdict' }, right ? 'Correct. ' : 'Not quite. '));
+        fb.appendChild(document.createTextNode(item.why));
+        btn.disabled = true;
+        if (!answered[qi]) { answered[qi] = true; if (right) correct++; }
+        var n = Object.keys(answered).length;
+        if (n === items.length) {
+          var best = Math.max(correct, (state.quiz && state.quiz.best) || 0);
+          state.quiz = { score: correct, total: items.length, best: best }; save();
+          summary.textContent = 'You scored ' + correct + ' of ' + items.length + '. Best so far: ' + best + '. This check is practice only and is not graded.';
+          retry.hidden = false;
+        } else summary.textContent = n + ' of ' + items.length + ' answered.';
+      });
+      fs.appendChild(btn); fs.appendChild(fb); root.appendChild(fs);
+    });
+    var retry = el('button', { type: 'button', class: 'btn ghost' }, 'Try the check again');
+    retry.hidden = true;
+    retry.addEventListener('click', function () { root.textContent = ''; quiz(root, items); root.querySelector('input').focus(); });
+    root.appendChild(summary); root.appendChild(retry);
+    if (state.quiz) summary.textContent = 'Last attempt: ' + state.quiz.score + ' of ' + state.quiz.total + '. Best: ' + state.quiz.best + '.';
+  }
+
+  function init() { initCopy(); initUnits(); initChecks(); }
+
+  return { init: init, quiz: quiz, el: el, shuffle: shuffle, announce: announce, read: read, write: write, state: state, save: save };
+})();
+
+(function () {
+  'use strict';
+  var el = NETW.el;
+  var WEEKS = [
+    { n: 1, t: 'Introduction and overview of containers', part: 1, file: 'week01.html', type: 'Lecture' },
+    { n: 2, t: 'Podman basics', part: 1, file: 'week02.html', type: '1 lab' },
+    { n: 3, t: 'Container images', part: 1, file: 'week03.html', type: '1 lab' },
+    { n: 4, t: 'Custom container images', part: 1, file: 'week04.html', type: '1 lab' },
+    { n: 5, t: 'Persisting data', part: 1, type: '1 lab' },
+    { n: 6, t: 'Troubleshooting containers', part: 1, type: '1 lab' },
+    { n: 7, t: 'Multi-container applications with Compose', part: 1, type: '1 lab' },
+    { n: 8, t: 'Container orchestration with OpenShift and Kubernetes', part: 1, type: '1 lab' },
+    { n: 9, t: 'Midterm lab practical and review', part: 1, type: 'Practical', practical: true },
+    { n: 10, t: 'Introduction to Kubernetes and OpenShift', part: 2, type: '1 lab' },
+    { n: 11, t: 'Kubernetes and OpenShift CLIs and APIs', part: 2, type: '1 lab' },
+    { n: 12, t: 'Run applications as containers and pods', part: 2, type: '1 lab' },
+    { n: 13, t: 'Deploy managed and networked applications', part: 2, type: '1 lab' },
+    { n: 14, t: 'Manage storage; configure applications for reliability', part: 2, type: '2 labs' },
+    { n: 15, t: 'Application updates and final lab practicals', part: 2, type: 'Practical', practical: true }
+  ];
+  function prog(n) {
+    var s = NETW.read('netw112:w' + (n < 10 ? '0' : '') + n);
+    if (!s || !s.total) return { pct: 0, done: 0 };
+    var done = Object.keys(s.units || {}).length;
+    return { pct: Math.round(done / s.total * 100), done: done };
+  }
+  var next = null, started = false;
+  WEEKS.forEach(function (w) {
+    var li = el('li');
+    var box = el(w.file ? 'a' : 'div', { class: 'box' + (w.practical ? ' practical' : '') });
+    if (w.file) box.setAttribute('href', w.file);
+    var body = el('div', { class: 'body' });
+    body.appendChild(el('span', { class: 'wk' }, String(w.n)));
+    body.appendChild(el('span', { class: 'ttl' }, w.t));
+    var foot = el('span', { class: 'foot' });
+    foot.appendChild(el('span', { class: 'tag' }, w.type));
+    var p = prog(w.n), st;
+    if (!w.file) st = el('span', { class: 'status' }, 'In development');
+    else if (p.pct >= 100) st = el('span', { class: 'status done' }, 'Complete');
+    else if (p.done > 0) { st = el('span', { class: 'status prog' }, p.pct + '% done'); started = true; }
+    else st = el('span', { class: 'status' }, 'Not started');
+    if (w.file && p.pct < 100 && !next) next = w;
+    foot.appendChild(st); body.appendChild(foot); box.appendChild(body);
+    var meter = el('span', { class: 'meter' }); var mi = el('i'); mi.style.width = (w.file ? p.pct : 0) + '%'; meter.appendChild(mi);
+    meter.setAttribute('aria-hidden', 'true'); box.appendChild(meter);
+    box.setAttribute('aria-label', 'Week ' + w.n + ': ' + w.t + '. ' + w.type + '. ' + st.textContent + '.');
+    li.appendChild(box);
+    document.getElementById(w.part === 1 ? 'bay1' : 'bay2').appendChild(li);
+  });
+  var resume = document.getElementById('resume');
+  if (next) {
+    var a = el('a', { class: 'btn', href: next.file }, (started ? 'Continue with Week ' : 'Start with Week ') + next.n);
+    resume.appendChild(a);
+    resume.appendChild(el('p', { class: 'hint' }, next.t));
+  } else resume.appendChild(el('p', { class: 'hint' }, 'You have finished every week that is available so far.'));
+
+  var G = [
+    ['Container', 1, 'A process, or group of processes, isolated by the Linux kernel and started from an image. It shares the host kernel.'],
+    ['Image', 1, 'A read-only template made of filesystem layers plus metadata such as the default command, user and ports.'],
+    ['Layer', 1, 'One read-only slice of an image\u2019s filesystem. Containers add a thin writable layer on top.'],
+    ['Registry', 1, 'A server that stores and serves images, for example registry.access.redhat.com or quay.io.'],
+    ['Tag', 1, 'A movable label for one version of an image, such as latest or 9.4.'],
+    ['Digest', 1, 'A SHA-256 hash that identifies exact image contents and never changes.'],
+    ['OCI', 1, 'Open Container Initiative: the open standards for image formats, runtimes and distribution.'],
+    ['Namespace', 1, 'A kernel feature that gives a process its own private view of one resource type, such as process IDs or the network.'],
+    ['cgroup', 1, 'Control group: a kernel feature that limits and accounts for CPU, memory and process counts.'],
+    ['SELinux', 1, 'Mandatory access control in RHEL. Containers run as container_t with unique category labels.'],
+    ['Seccomp', 1, 'A filter that restricts which system calls a process may make.'],
+    ['Capabilities', 1, 'Fine-grained pieces of root\u2019s privileges. Containers receive only a small default set.'],
+    ['Podman', 1, 'Red Hat\u2019s daemonless engine for running and managing containers, pods and images.'],
+    ['Buildah', 1, 'A tool for building OCI images, from a Containerfile or step by step.'],
+    ['Skopeo', 1, 'A tool for inspecting, copying and signing images directly in registries.'],
+    ['Rootless', 1, 'Running containers as an ordinary user, with root inside mapped to an unprivileged host user.'],
+    ['Daemonless', 1, 'Having no central background service; each Podman command does its own work.'],
+    ['conmon', 1, 'The small monitor process Podman leaves running for each container.'],
+    ['Detached', 2, 'Running in the background (podman run -d), returning your prompt.'],
+    ['Port publishing', 2, 'Forwarding a host port to a container port with -p host:container.'],
+    ['User-defined network', 2, 'A network created with podman network create. It has DNS, so containers find each other by name.'],
+    ['Containerfile', 4, 'A text file of instructions for building an image. Same format as a Dockerfile.'],
+    ['Volume', 5, 'Storage managed outside a container\u2019s writable layer so data survives the container.'],
+    ['Pod', 7, 'A group of containers that share a network namespace. The smallest unit Kubernetes schedules.'],
+    ['Compose', 7, 'A YAML format and tool for defining and starting multi-container applications together.'],
+    ['Kubernetes', 8, 'The open source standard for orchestrating containers across a cluster of machines.'],
+    ['OpenShift', 8, 'Red Hat\u2019s Kubernetes distribution, adding a web console, routes, builds and stricter security defaults.'],
+    ['oc', 10, 'The OpenShift command-line client. It includes all kubectl functions plus OpenShift-specific ones.'],
+    ['Node', 10, 'A machine in a Kubernetes cluster that runs pods.'],
+    ['Deployment', 13, 'A resource that keeps a set number of identical pods running and manages updates to them.'],
+    ['Service', 13, 'A stable virtual address and DNS name that load-balances across a set of pods.'],
+    ['Route', 13, 'An OpenShift resource that exposes a service outside the cluster with a host name.'],
+    ['ConfigMap', 14, 'A resource holding non-secret configuration data for applications.'],
+    ['Secret', 14, 'A resource holding sensitive values such as passwords or tokens.'],
+    ['PersistentVolumeClaim', 14, 'A request for storage that a pod can mount and that outlives the pod.'],
+    ['Probe', 14, 'A health check (startup, readiness or liveness) Kubernetes uses to decide whether a container is healthy.'],
+    ['Horizontal Pod Autoscaler', 14, 'A resource that adds or removes pod replicas based on measured load.'],
+    ['Rolling update', 15, 'Replacing pods gradually with a new version so the application stays available.']
+  ];
+  G.sort(function (a, b) { return a[0].toLowerCase() < b[0].toLowerCase() ? -1 : 1; });
+  var gl = document.getElementById('gl'), q = document.getElementById('gl-q'), cnt = document.getElementById('gl-count');
+  G.forEach(function (g) {
+    var d = el('div'); var dt = el('dt', null, g[0]); dt.appendChild(el('span', { class: 'wkref' }, 'Week ' + g[1]));
+    d.appendChild(dt); d.appendChild(el('dd', null, g[2])); d.setAttribute('data-k', (g[0] + ' ' + g[2]).toLowerCase()); gl.appendChild(d);
+  });
+  function filter() {
+    var v = q.value.trim().toLowerCase(), n = 0;
+    gl.querySelectorAll('div').forEach(function (d) { var on = !v || d.getAttribute('data-k').indexOf(v) > -1; d.hidden = !on; if (on) n++; });
+    cnt.textContent = v ? n + ' of ' + G.length + ' terms match.' : G.length + ' terms.';
+  }
+  q.addEventListener('input', filter); filter();
+})();
+</script>
+</body>
+</html>

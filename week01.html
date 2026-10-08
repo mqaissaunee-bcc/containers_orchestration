@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 1: Introduction to Containers | NETW 112 Containers &amp; Orchestration</title>
+<meta name="description" content="NETW 112 Week 1. What containers are, how the Linux kernel isolates them, how they differ from virtual machines, and the Podman, Buildah and Skopeo toolset.">
+<style>:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#E9EEF1; --ink:#17212B; --muted:#4A5866;
+  --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0;
+  --signal:#7E4C00; --signal-bg:#FFF3DC; --signal-line:#D9A24A;
+  --ok:#1C6A39; --ok-bg:#E3F4E8; --bad:#A1252A; --bad-bg:#FBE6E6;
+  --term-bg:#0F161D; --term-fg:#D3DFE7; --term-dim:#8FA3B1; --term-prompt:#7FD3C9; --term-err:#FF9C9C; --term-ok:#A8E6B5;
+  --steel-a:#C7D2DA; --steel-b:#B7C4CE;
+  --sans:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem; --s7:3rem; --s8:4.5rem;
+  --measure:68ch; --radius-sm:4px; --radius:8px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0E141A; --surface:#151E27; --surface-2:#1C2833; --ink:#E2E9EF; --muted:#A3B2BF;
+    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A;
+    --signal:#F0B65C; --signal-bg:#2A2214; --signal-line:#8A6526;
+    --ok:#74D19B; --ok-bg:#15301F; --bad:#F2898C; --bad-bg:#3A1C1E;
+    --term-bg:#080C10; --steel-a:#273440; --steel-b:#22303B;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:1rem;line-height:1.55}
+a{color:var(--accent);text-underline-offset:.15em}
+a:hover{color:var(--accent-strong)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:2px}
+.skip-link{position:absolute;left:var(--s4);top:-4rem;background:var(--accent);color:var(--accent-ink);padding:var(--s3) var(--s4);z-index:100;border-radius:var(--radius-sm);font-weight:600}
+.skip-link:focus{top:var(--s4)}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+img,svg{max-width:100%}
+code{overflow-wrap:anywhere}
+pre code,pre .c{overflow-wrap:normal}
+
+/* top bar */
+.topbar{border-bottom:1px solid var(--line);background:var(--surface)}
+.topbar-inner{max-width:76rem;margin:0 auto;padding:var(--s2) var(--s4);display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;justify-content:space-between}
+.brand{font-weight:600;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;gap:var(--s2);min-height:44px}
+.brand-code{font-family:var(--mono);font-size:.85rem;background:var(--ink);color:var(--surface);padding:.1rem .4rem;border-radius:var(--radius-sm)}
+.weeknav{display:flex;gap:var(--s2);flex-wrap:wrap}
+.weeknav a,.weeknav span{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);text-decoration:none;font-size:.9rem}
+.weeknav span{color:var(--muted)}
+
+/* module masthead */
+.masthead{max-width:76rem;margin:0 auto;padding:var(--s7) var(--s4) var(--s5)}
+.masthead .weekno{font-family:var(--mono);color:var(--accent);font-size:1rem;margin:0}
+.masthead h1{font-size:clamp(2rem,5vw,3.25rem);line-height:1.08;margin:var(--s2) 0 var(--s4);letter-spacing:-.015em;font-weight:600;max-width:20ch}
+.deck{font-family:var(--serif);font-size:1.2rem;line-height:1.6;max-width:var(--measure);color:var(--muted);margin:0 0 var(--s5)}
+.meta{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s6);margin:0;padding:0}
+.meta div{min-width:9rem}
+.meta dt{font-size:.8rem;color:var(--muted)}
+.meta dd{margin:0;font-weight:600}
+.progress-wrap{margin-top:var(--s5);max-width:28rem}
+.progress-label{font-size:.85rem;color:var(--muted);display:flex;justify-content:space-between}
+.bar{height:10px;background:var(--surface-2);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* layout */
+.layout{max-width:76rem;margin:0 auto;padding:0 var(--s4) var(--s8);display:grid;grid-template-columns:1fr;gap:var(--s6)}
+@media (min-width:62rem){.layout{grid-template-columns:15rem minmax(0,1fr)}}
+.toc{font-size:.92rem}
+.toc details{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:var(--s2) var(--s3)}
+.toc summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+@media (min-width:62rem){
+  .toc{position:sticky;top:var(--s4);align-self:start;max-height:calc(100vh - 2rem);overflow:auto}
+  .toc details{border:0;background:transparent;padding:0}
+  .toc summary{pointer-events:none;list-style:none}
+  .toc summary::-webkit-details-marker{display:none}
+}
+.toc ol{list-style:none;margin:var(--s2) 0 0;padding:0;counter-reset:t}
+.toc li{counter-increment:t}
+.toc a{display:flex;gap:var(--s2);align-items:baseline;padding:var(--s2);min-height:40px;text-decoration:none;color:var(--ink);border-left:3px solid transparent}
+.toc a::before{content:counter(t);font-family:var(--mono);font-size:.8rem;color:var(--muted);min-width:1.4em}
+.toc a[aria-current="true"]{border-left-color:var(--accent);background:var(--accent-soft)}
+.toc .tick{margin-left:auto;color:var(--ok);font-weight:700}
+
+/* content */
+main{min-width:0}
+.unit{padding:var(--s6) 0 var(--s5);border-top:1px solid var(--line);scroll-margin-top:var(--s4)}
+.unit:first-child{border-top:0;padding-top:0}
+.unit>h2{font-size:clamp(1.45rem,3vw,1.9rem);line-height:1.2;margin:0 0 var(--s4);font-weight:600;letter-spacing:-.01em;display:flex;gap:var(--s3);align-items:baseline}
+.unit>h2 .n{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:500}
+.unit h3{font-size:1.15rem;margin:var(--s6) 0 var(--s2);font-weight:600}
+.prose{font-family:var(--serif);font-size:1.075rem;line-height:1.7;max-width:var(--measure)}
+.prose p,.prose ul,.prose ol{margin:0 0 var(--s4)}
+.prose li{margin-bottom:var(--s2)}
+.prose code,.inline-code{overflow-wrap:anywhere;font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:.08em .32em;border-radius:3px}
+.prose strong{font-family:var(--sans);font-weight:600;font-size:.97em}
+.objectives{max-width:var(--measure);padding-left:1.25rem;font-family:var(--serif);font-size:1.075rem;line-height:1.65}
+.objectives li{margin-bottom:var(--s2)}
+
+/* callouts */
+.callout{max-width:var(--measure);border-left:4px solid var(--accent);background:var(--surface);padding:var(--s3) var(--s4);margin:var(--s5) 0;border-radius:0 var(--radius) var(--radius) 0;font-size:.98rem}
+.callout>p{margin:0 0 var(--s2)}.callout>p:last-child{margin:0}
+.callout .label{font-weight:600;display:block;margin-bottom:var(--s1)}
+.callout.exam{border-left-color:var(--signal-line);background:var(--signal-bg)}
+.callout.exam .label{color:var(--signal)}
+.callout.warn{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.warn .label{color:var(--bad)}
+
+/* command blocks */
+.cmd{position:relative;max-width:var(--measure);margin:var(--s4) 0;background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s4);padding-right:5.5rem;font-family:var(--mono);font-size:.88rem;line-height:1.55;overflow-x:auto;white-space:pre}
+.cmd .p{color:var(--term-prompt);user-select:none}
+.cmd .o{color:var(--term-dim)}
+.copy-btn{position:absolute;top:var(--s2);right:var(--s2);min-height:36px;min-width:44px;padding:0 var(--s3);background:transparent;color:var(--term-fg);border:1px solid var(--term-dim);border-radius:var(--radius-sm);font-family:var(--sans);font-size:.8rem;cursor:pointer}
+.copy-btn:hover{border-color:var(--term-prompt);color:var(--term-prompt)}
+
+/* tables */
+.table-wrap{overflow-x:auto;max-width:100%;margin:var(--s4) 0}
+table{border-collapse:collapse;min-width:32rem;font-size:.94rem}
+th,td{text-align:left;padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;background:var(--surface-2)}
+td code{font-family:var(--mono);font-size:.86rem}
+
+/* buttons */
+.btn{min-height:44px;min-width:44px;padding:0 var(--s4);border-radius:var(--radius-sm);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:600 .95rem var(--sans);cursor:pointer}
+.btn:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.done-row{margin-top:var(--s5);display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
+.done-btn[aria-pressed="true"]{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.done-btn[aria-pressed="true"]::before{content:"✓ "}
+
+/* interactive frame */
+.lab-frame{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:var(--s5);margin:var(--s5) 0}
+.lab-frame>h3:first-child{margin-top:0}
+.hint{color:var(--muted);font-size:.92rem;max-width:var(--measure)}
+
+/* quiz */
+.quiz-q{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:var(--s4);margin:0 0 var(--s4);background:var(--surface);max-width:46rem}
+.quiz-q legend{overflow-wrap:anywhere;max-width:100%;font-weight:600;padding:0 var(--s2);font-size:1.02rem}
+.quiz-q .qn{font-family:var(--mono);color:var(--accent);margin-right:var(--s2)}
+.choice{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s2) var(--s3);min-height:44px;border-radius:var(--radius-sm);cursor:pointer}
+.choice:hover{background:var(--surface-2)}
+.choice>span{overflow-wrap:anywhere}
+.choice input{margin-top:.3rem;width:1.1rem;height:1.1rem;flex:none}
+.choice.is-right{background:var(--ok-bg)}
+.choice.is-wrong{background:var(--bad-bg)}
+.feedback{margin-top:var(--s3);font-size:.96rem}
+.feedback .verdict{font-weight:700}
+.feedback.right .verdict{color:var(--ok)}
+.feedback.wrong .verdict{color:var(--bad)}
+.quiz-summary{font-weight:600;margin:var(--s3) 0}
+
+/* lab bridge */
+.bridge{border:2px solid var(--signal-line);background:var(--signal-bg);border-radius:var(--radius);padding:var(--s5);max-width:52rem}
+.bridge h3{margin-top:0;color:var(--signal)}
+.bridge ol,.bridge ul{font-family:var(--serif);font-size:1.05rem;line-height:1.65;padding-left:1.25rem}
+.checklist{list-style:none;padding:0!important}
+.checklist li{display:flex;gap:var(--s3);align-items:flex-start;margin-bottom:var(--s2)}
+.checklist input{width:1.2rem;height:1.2rem;margin-top:.35rem;flex:none}
+
+/* footer */
+.site-foot{border-top:1px solid var(--line);background:var(--surface);font-size:.88rem;color:var(--muted)}
+.site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
+.site-foot p{margin:0 0 var(--s2);max-width:80ch}
+@media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+
+/* week 1 interactives */
+.stack-grid{display:grid;grid-template-columns:1fr;gap:var(--s5)}
+@media (min-width:44rem){.stack-grid{grid-template-columns:1fr 1fr}}
+.stack h4{margin:0 0 var(--s2);font-size:1rem}
+.stack ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.stack .row{display:flex;gap:4px}
+.layer{flex:1;min-height:44px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:var(--radius-sm);font:500 .9rem var(--sans);cursor:pointer;padding:var(--s2)}
+.layer.full{width:100%}
+.layer.app{background:var(--accent-soft);border-color:var(--accent)}
+.layer.os{background:var(--signal-bg);border-color:var(--signal-line)}
+.layer.kernel{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.layer[aria-pressed="true"]{outline:3px solid var(--accent);outline-offset:1px}
+.stack-detail{margin-top:var(--s4);min-height:5.5rem;padding:var(--s3) var(--s4);border:1px dashed var(--line);border-radius:var(--radius);max-width:var(--measure)}
+.stack-detail strong{display:block}
+.ns-wrap{display:grid;grid-template-columns:1fr;gap:var(--s5)}
+@media (min-width:56rem){.ns-wrap{grid-template-columns:17rem minmax(0,1fr)}}
+.switch{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s2) 0;min-height:44px;cursor:pointer}
+.switch input{width:1.2rem;height:1.2rem;margin-top:.25rem;flex:none}
+.switch small{display:block;color:var(--muted);font-size:.85rem}
+.bare{border:0;padding:0;margin:0}
+.ns-term{background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s4);font:.85rem/1.5 var(--mono);white-space:pre;overflow-x:auto;min-height:20rem;margin:0}
+.ns-term .p{color:var(--term-prompt)}
+.ns-term .hl{color:var(--term-ok)}
+.ns-presets{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s3)}
+.cg-meter{height:2.25rem;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-2);position:relative;overflow:hidden;max-width:36rem;margin:var(--s3) 0}
+.cg-meter i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);transition:width .25s}
+.cg-meter.over i{background:var(--bad)}
+.cg-meter span{position:relative;display:flex;align-items:center;height:100%;padding:0 var(--s3);font:600 .88rem var(--mono);color:var(--ink);mix-blend-mode:normal}
+.cg-controls{display:flex;gap:var(--s3);flex-wrap:wrap;align-items:center}
+.cg-controls select{min-height:44px;font:inherit;padding:0 var(--s2);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)}
+.cg-status{font-weight:600;margin-top:var(--s2)}
+.cg-status.bad{color:var(--bad)}
+</style>
+</head>
+<body data-module="w01">
+<a href="#main" class="skip-link">Skip to main content</a>
+<div id="sr-status" class="vh" role="status" aria-live="polite"></div>
+
+<header>
+  <div class="topbar"><div class="topbar-inner">
+    <a class="brand" href="index.html"><span class="brand-code">NETW 112</span> Course home</a>
+    <nav class="weeknav" aria-label="Week navigation"><span>No earlier week</span><a href="week02.html">Next: Week 2, Podman basics</a></nav>
+  </div></div>
+  <div class="masthead">
+    <p class="weekno">Week 1</p>
+    <h1>What a container actually is</h1>
+    <p class="deck">Before you type a single Podman command, you need a clear picture of what happens when a container starts: an ordinary Linux process, wrapped in kernel features that change what it can see and how much it can use.</p>
+    <dl class="meta">
+      <div><dt>Red Hat course</dt><dd>DO188, Chapter 1 topics</dd></div>
+      <div><dt>Session type</dt><dd>Lecture, no graded lab</dd></div>
+      <div><dt>Course outcome</dt><dd>Builds toward Outcome 1</dd></div>
+      <div><dt>Time</dt><dd>About 2 hours</dd></div>
+    </dl>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Your progress this week</span><span id="progress-count">0 of 0 sections</span></div>
+      <div class="bar" id="progress" role="progressbar" aria-label="Week 1 progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Sections in this week">
+    <details open><summary>In this week</summary>
+      <ol>
+        <li><a href="#goals">Goals</a></li>
+        <li><a href="#why">The problem containers solve</a></li>
+        <li><a href="#vm">Containers and virtual machines</a></li>
+        <li><a href="#kernel">How the kernel builds a container</a></li>
+        <li><a href="#images">Images, containers and registries</a></li>
+        <li><a href="#tools">Podman, Buildah and Skopeo</a></li>
+        <li><a href="#orch">Beyond one host</a></li>
+        <li><a href="#check">Knowledge check</a></li>
+        <li><a href="#ready">Get your lab ready</a></li>
+      </ol>
+    </details>
+  </nav>
+
+<main id="main">
+  <section class="unit" id="goals" data-unit>
+    <h2><span class="n">1</span>Goals</h2>
+    <p class="prose">By the end of this week you should be able to:</p>
+    <ul class="objectives">
+      <li>Explain what problem containers solve and why they have become the normal way to ship server software.</li>
+      <li>Compare containers with virtual machines in terms of the kernel, startup time, size and isolation.</li>
+      <li>Name the Linux kernel features (namespaces, cgroups, SELinux, seccomp and capabilities) that make a container, and what each one controls.</li>
+      <li>Distinguish an image from a container, and a tag from a digest.</li>
+      <li>Describe what Podman, Buildah and Skopeo each do, and what "daemonless" and "rootless" mean.</li>
+      <li>Explain at a high level why orchestration platforms such as Kubernetes and OpenShift exist.</li>
+    </ul>
+    <div class="callout"><span class="label">How each week works</span>
+      <p>Read and practice here first. Then complete the matching guided exercises and lab in the Red Hat Online Learning Environment (OLE). The OLE lab is what gets graded; this site is your textbook and practice space.</p></div>
+  </section>
+
+  <section class="unit" id="why" data-unit>
+    <h2><span class="n">2</span>The problem containers solve</h2>
+    <div class="prose">
+      <p>Every application depends on more than its own code. A Python web app needs a specific Python version, a list of libraries at particular versions, a few system packages, configuration files and environment variables. On the developer's laptop, all of that happens to line up. On the test server, one library is a minor version newer. In production, a system package is missing. The app that "works on my machine" fails everywhere else.</p>
+      <p>Traditional fixes were slow and fragile: long installation documents, configuration management scripts that try to make every server identical, or one virtual machine per application. A <strong>container</strong> takes a different approach. You package the application together with its runtime, libraries and default configuration into a single unit called an <strong>image</strong>. Any Linux host with a container engine can run that image and get the same result, because everything the app needs travels with it.</p>
+      <p>That one idea pays off in several ways:</p>
+      <ul>
+        <li><strong>Consistency.</strong> The image a developer tests is byte-for-byte the image that runs in production.</li>
+        <li><strong>Density.</strong> Containers share the host kernel, so one server can run dozens or hundreds of them.</li>
+        <li><strong>Speed.</strong> A container starts in a fraction of a second because there is no operating system to boot.</li>
+        <li><strong>Isolation.</strong> Two apps that need conflicting library versions can run side by side without ever seeing each other.</li>
+        <li><strong>Disposability.</strong> Because the image defines the app, you can delete a misbehaving container and start a fresh one instead of repairing it by hand.</li>
+      </ul>
+      <p>That last point is a shift in mindset you will see all semester. Containers are meant to be replaced, not nursed. Any data that has to survive a replacement lives outside the container, which is the subject of Week 5.</p>
+    </div>
+  </section>
+
+  <section class="unit" id="vm" data-unit>
+    <h2><span class="n">3</span>Containers and virtual machines</h2>
+    <div class="prose">
+      <p>Virtual machines and containers both let you run several isolated workloads on one physical server, but they draw the isolation boundary in different places. A virtual machine emulates hardware. A hypervisor gives each VM virtual CPUs, memory and disks, and each VM boots its own complete operating system, kernel included.</p>
+      <p>A container does not emulate anything. It is a normal process running on the host's own kernel. The kernel simply restricts what that process can see and how many resources it can consume. There is exactly one kernel, shared by every container on the host.</p>
+    </div>
+    <div class="lab-frame">
+      <h3>Compare the two stacks</h3>
+      <p class="hint">Select any layer to see what it does and how the two approaches differ at that level.</p>
+      <div class="stack-grid">
+        <div class="stack">
+          <h4>Virtual machines</h4>
+          <ol>
+            <li class="row"><button type="button" class="layer app" data-layer="vm-app">App A</button><button type="button" class="layer app" data-layer="vm-app">App B</button></li>
+            <li class="row"><button type="button" class="layer" data-layer="vm-libs">Bins and libs</button><button type="button" class="layer" data-layer="vm-libs">Bins and libs</button></li>
+            <li class="row"><button type="button" class="layer os" data-layer="vm-guest">Guest OS and kernel</button><button type="button" class="layer os" data-layer="vm-guest">Guest OS and kernel</button></li>
+            <li><button type="button" class="layer full" data-layer="vm-hyp">Hypervisor</button></li>
+            <li><button type="button" class="layer kernel full" data-layer="vm-host">Host OS and kernel</button></li>
+            <li><button type="button" class="layer full" data-layer="hw">Hardware</button></li>
+          </ol>
+        </div>
+        <div class="stack">
+          <h4>Containers</h4>
+          <ol>
+            <li class="row"><button type="button" class="layer app" data-layer="c-app">App A</button><button type="button" class="layer app" data-layer="c-app">App B</button></li>
+            <li class="row"><button type="button" class="layer" data-layer="c-libs">Bins and libs</button><button type="button" class="layer" data-layer="c-libs">Bins and libs</button></li>
+            <li><button type="button" class="layer full" data-layer="c-engine">Container engine (Podman)</button></li>
+            <li><button type="button" class="layer kernel full" data-layer="c-host">Host OS and the one shared kernel</button></li>
+            <li><button type="button" class="layer full" data-layer="hw">Hardware</button></li>
+          </ol>
+        </div>
+      </div>
+      <div class="stack-detail" id="stack-detail" aria-live="polite"><strong>Nothing selected yet</strong>Choose a layer above.</div>
+    </div>
+    <div class="prose">
+      <h3>When each one fits</h3>
+      <p>Containers win on startup time, size and density. A VM image is measured in gigabytes and boots in tens of seconds; a container image is often tens or hundreds of megabytes and starts almost instantly. VMs win when you need a different kernel or operating system (a Windows workload on a Linux host, for example) or when you need the stronger isolation of a separate kernel. In practice, the two are combined: most containers in the cloud run on Linux hosts that are themselves virtual machines.</p>
+    </div>
+    <div class="callout warn"><span class="label">Common misconception</span>
+      <p>A container image based on another Linux distribution does not bring its own kernel. A container built from an Ubuntu image running on a RHEL 9 host is using the RHEL 9 kernel. Only the user-space files (libraries, shell, package manager) come from the image.</p></div>
+  </section>
+
+  <section class="unit" id="kernel" data-unit>
+    <h2><span class="n">4</span>How the kernel builds a container</h2>
+    <div class="prose">
+      <p>There is no single "container" feature in Linux. A container engine combines several independent kernel features, each of which solves one part of the isolation problem.</p>
+      <ul>
+        <li><strong>Namespaces</strong> control what a process can <em>see</em>. Each namespace type gives the process its own private view of one kind of system resource: process IDs, network interfaces, mounted filesystems, the hostname, users and more.</li>
+        <li><strong>Control groups (cgroups)</strong> control what a process can <em>use</em>: how much memory, how much CPU time and how many processes. RHEL 9 uses cgroups version 2.</li>
+        <li><strong>SELinux</strong> controls what a process is <em>allowed to touch</em>. Container processes run with the <code>container_t</code> type, and each container also gets a unique pair of categories (for example <code>s0:c142,c871</code>), so one container cannot read another container's files even if both run as the same user.</li>
+        <li><strong>Seccomp</strong> filters which <em>system calls</em> a process may make, blocking rarely needed and risky ones.</li>
+        <li><strong>Capabilities</strong> split root's powers into smaller pieces. Containers start with only a small set, so even "root" inside a container cannot, for example, load kernel modules.</li>
+      </ul>
+      <p>The interactive below lets you switch namespaces on and off for a single process and see how its view of the system changes.</p>
+    </div>
+    <div class="lab-frame">
+      <h3>Namespace explorer</h3>
+      <p class="hint">The terminal shows what a web server process would see if it ran these commands. Turn namespaces on to watch the host disappear from its view.</p>
+      <div class="ns-wrap">
+        <fieldset class="bare">
+          <legend class="vh">Namespaces applied to the process</legend>
+          <label class="switch"><input type="checkbox" data-ns="pid"><span>PID namespace<small>Own process list; the app becomes PID 1.</small></span></label>
+          <label class="switch"><input type="checkbox" data-ns="net"><span>Network namespace<small>Own interfaces, IP addresses and ports.</small></span></label>
+          <label class="switch"><input type="checkbox" data-ns="mnt"><span>Mount namespace<small>Own root filesystem from the image.</small></span></label>
+          <label class="switch"><input type="checkbox" data-ns="uts"><span>UTS namespace<small>Own hostname.</small></span></label>
+          <label class="switch"><input type="checkbox" data-ns="user"><span>User namespace<small>Root inside maps to an unprivileged user outside.</small></span></label>
+          <div class="ns-presets">
+            <button type="button" class="btn ghost" id="ns-none">Plain process</button>
+            <button type="button" class="btn ghost" id="ns-all">Rootless container</button>
+          </div>
+        </fieldset>
+        <pre class="ns-term" id="ns-term" aria-live="polite" aria-label="Simulated terminal output from inside the process"></pre>
+      </div>
+    </div>
+    <div class="prose">
+      <h3>Limits with cgroups</h3>
+      <p>Namespaces hide things, but they don't stop a process from consuming every byte of memory on the host. That is the job of cgroups. When you start a container with a memory limit, the kernel tracks every allocation the container makes. If the container goes over the limit, the kernel's out-of-memory (OOM) killer ends it. Podman reports this as exit code 137, which means the process received signal 9 (128 + 9).</p>
+    </div>
+    <div class="lab-frame">
+      <h3>Memory limit demo</h3>
+      <p class="hint">Pick a limit, then add load until something happens. The equivalent Podman option is shown so you'll recognize it later.</p>
+      <div class="cg-controls">
+        <label for="cg-limit">Memory limit</label>
+        <select id="cg-limit"><option value="128">128 MiB</option><option value="256" selected>256 MiB</option><option value="512">512 MiB</option></select>
+        <button type="button" class="btn" id="cg-add">Add 96 MiB of load</button>
+        <button type="button" class="btn ghost" id="cg-reset">Restart container</button>
+      </div>
+      <div class="cg-meter" id="cg-meter"><i></i><span id="cg-text">0 MiB used of 256 MiB</span></div>
+      <p class="cg-status" id="cg-status" aria-live="polite">Container running.</p>
+      <pre class="cmd" id="cg-cmd"><span class="p">$ </span><span class="c">podman run -d --memory 256m registry.access.redhat.com/ubi9/httpd-24</span></pre>
+    </div>
+  </section>
+
+  <section class="unit" id="images" data-unit>
+    <h2><span class="n">5</span>Images, containers and registries</h2>
+    <div class="prose">
+      <p>An <strong>image</strong> is a read-only template: a stack of filesystem layers plus metadata that says which command to run, which user to run it as, which ports the app listens on and which environment variables to set. A <strong>container</strong> is a running (or stopped) instance of an image. If an image is a class, a container is an object; you can start many containers from one image.</p>
+      <p>When a container starts, the engine stacks the image's read-only layers and adds one thin writable layer on top. Any file the container changes is copied up into that writable layer (copy-on-write). Delete the container and the writable layer goes with it; the image is untouched. This is why changes made inside a running container disappear when you replace it.</p>
+      <h3>Naming an image</h3>
+      <p>A fully qualified image name has four parts:</p>
+    </div>
+    <pre class="cmd"><span class="c">registry.access.redhat.com/ubi9/httpd-24:latest</span>
+<span class="o">└──────── registry ───────┘└ namespace ┘└ repo ┘└ tag ┘</span></pre>
+    <div class="prose">
+      <ul>
+        <li>The <strong>registry</strong> is the server that stores images, such as <code>registry.access.redhat.com</code>, <code>registry.redhat.io</code> or <code>quay.io</code>.</li>
+        <li>The <strong>namespace</strong> groups related repositories, usually by organization or product line.</li>
+        <li>The <strong>repository</strong> holds every version of one image.</li>
+        <li>The <strong>tag</strong> labels one version. If you leave it off, <code>latest</code> is assumed.</li>
+      </ul>
+      <p>Tags are convenient but <em>mutable</em>: the publisher can move <code>latest</code> to a new build at any time. Every image also has a <strong>digest</strong>, a SHA-256 hash of its contents such as <code>@sha256:4c1b…</code>. A digest can never point to different contents, so it is the way to guarantee you get exactly the image you tested.</p>
+      <h3>Open standards</h3>
+      <p>Image and container formats are defined by the <strong>Open Container Initiative (OCI)</strong>. Because Podman, Docker, Kubernetes and OpenShift all follow the OCI specifications, an image built with one tool runs on all the others. Under the hood, Podman hands the actual work of creating the container to a low-level OCI runtime such as <code>crun</code> or <code>runc</code>.</p>
+    </div>
+    <div class="callout exam"><span class="label">Exam habit</span>
+      <p>Get used to typing fully qualified image names now. Short names such as <code>httpd-24</code> make Podman search a list of registries, which can be ambiguous, can prompt you to choose and may pull an image from somewhere you didn't intend.</p></div>
+  </section>
+
+  <section class="unit" id="tools" data-unit>
+    <h2><span class="n">6</span>Podman, Buildah and Skopeo</h2>
+    <div class="prose">
+      <p>Red Hat Enterprise Linux ships three complementary open source tools for working with containers. All three are in the default RHEL 9 repositories.</p>
+    </div>
+    <div class="table-wrap"><table>
+      <caption class="vh">The three container tools and their jobs</caption>
+      <thead><tr><th scope="col">Tool</th><th scope="col">Main job</th><th scope="col">Example</th></tr></thead>
+      <tbody>
+        <tr><td>Podman</td><td>Run and manage containers, pods, images, networks and volumes. Also builds images using Buildah's code.</td><td><code>podman run</code>, <code>podman ps</code></td></tr>
+        <tr><td>Buildah</td><td>Build OCI images, from a Containerfile or step by step from the command line.</td><td><code>buildah bud</code>, <code>buildah from</code></td></tr>
+        <tr><td>Skopeo</td><td>Inspect, copy and sign images directly in registries, without pulling them into local storage.</td><td><code>skopeo inspect</code>, <code>skopeo copy</code></td></tr>
+      </tbody>
+    </table></div>
+    <div class="prose">
+      <h3>Daemonless</h3>
+      <p>Some container engines run a central background service (a daemon), usually as root, and every command you type is a request sent to it. Podman has no daemon. When you run <code>podman run</code>, Podman itself sets up the container and then exits, leaving a small monitor process called <code>conmon</code> to watch the container. There is no single privileged service that, if compromised or crashed, takes every container with it. It also means containers integrate cleanly with <code>systemd</code>, which you'll use later to start containers at boot.</p>
+      <h3>Rootless</h3>
+      <p>Podman can run containers as an ordinary user. A user namespace maps "root" inside the container to your own unprivileged account on the host, using the ID ranges listed in <code>/etc/subuid</code> and <code>/etc/subgid</code>. If an attacker escapes a rootless container, they land on the host as you, not as root. You'll do almost all of this course's Podman work rootless.</p>
+      <h3>Compatible commands</h3>
+      <p>Podman's command line deliberately mirrors Docker's, so most Docker tutorials work if you replace <code>docker</code> with <code>podman</code>. Podman adds one idea Docker doesn't have: the <strong>pod</strong>, a group of containers that share a network namespace. Pods are the same concept Kubernetes uses, which makes Podman a natural stepping stone to OpenShift.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">skopeo inspect docker://registry.access.redhat.com/ubi9/ubi</span>
+<span class="o">{
+    "Name": "registry.access.redhat.com/ubi9/ubi",
+    "Digest": "sha256:…",
+    "RepoTags": [ "9.4", "9.5", "latest", … ],
+    "Labels": { "vendor": "Red Hat, Inc.", … },
+    …
+}</span></pre>
+    <p class="hint">Skopeo read that metadata straight from the registry. Nothing was downloaded into local image storage.</p>
+  </section>
+
+  <section class="unit" id="orch" data-unit>
+    <h2><span class="n">7</span>Beyond one host</h2>
+    <div class="prose">
+      <p>Podman is excellent on a single machine. Production systems, though, run hundreds of containers across many servers, and they need answers to questions a single host can't provide. Which server has room for this container? What happens when a server fails at 3 a.m.? How do we run five copies of the web tier and send traffic evenly across them? How do we roll out a new version without downtime, and roll back if it's broken?</p>
+      <p>A <strong>container orchestrator</strong> answers those questions. <strong>Kubernetes</strong> is the open source standard. You describe the state you want ("three replicas of this image, reachable on this port, with this much memory each") and Kubernetes continuously works to make the cluster match: scheduling containers onto nodes, restarting them when they fail, and replacing them during updates.</p>
+      <p><strong>Red Hat OpenShift</strong> is a Kubernetes distribution. Everything you learn about Kubernetes applies to it, and it adds a web console, routes for exposing applications, built-in image builds, an integrated registry, and stricter security defaults. One of those defaults matters early: by default OpenShift runs containers as an arbitrary, non-root user ID. Images that assume they run as root often fail on OpenShift, which is one reason this course teaches you to build images carefully in Weeks 3 and 4.</p>
+      <p>You'll get your first look at a cluster in Week 8, and the entire second half of the course (Weeks 10 to 15) is about operating applications on OpenShift.</p>
+    </div>
+  </section>
+
+  <section class="unit" id="check" data-unit>
+    <h2><span class="n">8</span>Knowledge check</h2>
+    <p class="hint">Eight questions, answer order shuffled each time. This check is practice and does not count toward your grade.</p>
+    <div id="quiz"></div>
+  </section>
+
+  <section class="unit" id="ready" data-unit>
+    <h2><span class="n">9</span>Get your lab ready</h2>
+    <div class="bridge">
+      <h3>No graded lab this week. Use the time to set up.</h3>
+      <p class="prose">Week 2 starts the graded labs. Make sure every item below works now, so an access problem doesn't cost you points later. The syllabus is clear that environment issues must be reported right away, not after a due date.</p>
+      <ul class="checklist">
+        <li><input type="checkbox" id="r1" data-check="r1"><label for="r1">I can sign in to the Red Hat Online Learning Environment through the Red Hat Academy.</label></li>
+        <li><input type="checkbox" id="r2" data-check="r2"><label for="r2">I can open the DO188 course and see the Chapter 1 and Chapter 2 content.</label></li>
+        <li><input type="checkbox" id="r3" data-check="r3"><label for="r3">My RHEL 9 workstation is reachable and has internet access.</label></li>
+        <li><input type="checkbox" id="r4" data-check="r4"><label for="r4">Podman, Buildah and Skopeo are installed (commands below).</label></li>
+        <li><input type="checkbox" id="r5" data-check="r5"><label for="r5">I created a Red Hat Developer Sandbox account, or I know which instructor cluster I'll use.</label></li>
+        <li><input type="checkbox" id="r6" data-check="r6"><label for="r6">I read the syllabus sections on late work, academic integrity and the use of AI tools.</label></li>
+      </ul>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman --version</span>
+<span class="o">podman version 4.x.x</span>
+<span class="p">$ </span><span class="c">rpm -q podman buildah skopeo</span>
+<span class="p">$ </span><span class="c">sudo dnf install -y podman buildah skopeo</span>   <span class="o"># only if any are missing</span>
+<span class="p">$ </span><span class="c">cat /etc/subuid</span>   <span class="o"># your user should have a range, needed for rootless</span></pre>
+    <div class="callout warn"><span class="label">Academic integrity reminder</span>
+      <p>AI tools may help you study concepts and read documentation. They may not be used to complete the hands-on lab tasks, and lab solutions and OLE credentials may not be shared.</p></div>
+  </section>
+</main>
+</div>
+
+<footer class="site-foot"><div class="inner">
+  <p>Built for <span class="program">NETW 112 Containers &amp; Orchestration</span> · Brookdale Community College · <span class="year">2026</span></p>
+  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat, Red Hat Enterprise Linux and OpenShift are trademarks of Red Hat, Inc.</p>
+</div></footer>
+
+<script>/* NETW 112 shared module runtime. Inlined into every page. */
+var NETW = (function () {
+  'use strict';
+  var MOD = document.body.getAttribute('data-module') || 'hub';
+  var KEY = 'netw112:' + MOD;
+
+  function read(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || null; } catch (e) { return null; }
+  }
+  function write(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage unavailable */ }
+  }
+  var state = read(KEY) || { units: {}, checks: {}, quiz: null, total: 0 };
+  state.units = state.units || {}; state.checks = state.checks || {};
+  function save() { write(KEY, state); }
+
+  function announce(msg) {
+    var r = document.getElementById('sr-status');
+    if (!r) return;
+    r.textContent = '';
+    window.setTimeout(function () { r.textContent = msg; }, 30);
+  }
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function el(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') n.className = attrs[k]; else n.setAttribute(k, attrs[k]);
+    });
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /* ---------- copy buttons ---------- */
+  function initCopy() {
+    document.querySelectorAll('pre.cmd').forEach(function (pre) {
+      var b = el('button', { type: 'button', class: 'copy-btn' }, 'Copy');
+      b.setAttribute('aria-label', 'Copy commands');
+      b.addEventListener('click', function () {
+        var cmds = pre.querySelectorAll('.c');
+        var text = cmds.length ? Array.prototype.map.call(cmds, function (c) { return c.textContent; }).join('\n') : pre.textContent;
+        function ok() { b.textContent = 'Copied'; announce('Commands copied to clipboard'); setTimeout(function () { b.textContent = 'Copy'; }, 1600); }
+        function fallback() {
+          var ta = el('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+          var done = false; try { done = document.execCommand('copy'); } catch (e) { done = false; }
+          document.body.removeChild(ta);
+          if (done) ok(); else { b.textContent = 'Select text'; announce('Copy is blocked here. Select the text and copy it manually.'); }
+        }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
+      });
+      pre.appendChild(b);
+    });
+  }
+
+  /* ---------- units, progress, TOC ---------- */
+  var units = [];
+  function updateProgress() {
+    var done = units.filter(function (u) { return state.units[u.id]; }).length;
+    state.total = units.length; save();
+    var pct = units.length ? Math.round(done / units.length * 100) : 0;
+    var bar = document.getElementById('progress');
+    if (bar) {
+      bar.setAttribute('aria-valuenow', String(pct));
+      bar.querySelector('i').style.width = pct + '%';
+      var lbl = document.getElementById('progress-count');
+      if (lbl) lbl.textContent = done + ' of ' + units.length + ' sections';
+    }
+    document.querySelectorAll('.toc a').forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var t = a.querySelector('.tick');
+      if (state.units[id] && !t) { t = el('span', { class: 'tick' }, '✓'); t.appendChild(el('span', { class: 'vh' }, ' completed')); a.appendChild(t); }
+      if (!state.units[id] && t) a.removeChild(t);
+    });
+  }
+  function initUnits() {
+    document.querySelectorAll('section[data-unit]').forEach(function (s) {
+      units.push(s);
+      var row = el('div', { class: 'done-row' });
+      var b = el('button', { type: 'button', class: 'btn ghost done-btn' });
+      function paint() {
+        var on = !!state.units[s.id];
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.textContent = on ? 'Section complete' : 'Mark section complete';
+      }
+      b.addEventListener('click', function () {
+        state.units[s.id] = !state.units[s.id];
+        if (!state.units[s.id]) delete state.units[s.id];
+        paint(); updateProgress();
+        announce(state.units[s.id] ? 'Section marked complete' : 'Section marked not complete');
+      });
+      paint(); row.appendChild(b); s.appendChild(row);
+    });
+    updateProgress();
+    if ('IntersectionObserver' in window) {
+      var links = {};
+      document.querySelectorAll('.toc a').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting && links[e.target.id]) {
+            Object.keys(links).forEach(function (k) { links[k].removeAttribute('aria-current'); });
+            links[e.target.id].setAttribute('aria-current', 'true');
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px' });
+      units.forEach(function (u) { io.observe(u); });
+    }
+  }
+
+  /* ---------- persistent checklists ---------- */
+  function initChecks() {
+    document.querySelectorAll('input[type=checkbox][data-check]').forEach(function (c) {
+      var k = c.getAttribute('data-check');
+      c.checked = !!state.checks[k];
+      c.addEventListener('change', function () { state.checks[k] = c.checked; save(); });
+    });
+  }
+
+  /* ---------- quiz engine ---------- */
+  function quiz(root, items) {
+    var answered = {}; var correct = 0;
+    var summary = el('p', { class: 'quiz-summary', 'aria-live': 'polite' });
+    items.forEach(function (item, qi) {
+      var fs = el('fieldset', { class: 'quiz-q' });
+      var lg = el('legend'); lg.appendChild(el('span', { class: 'qn' }, String(qi + 1))); lg.appendChild(document.createTextNode(item.q));
+      fs.appendChild(lg);
+      var name = MOD + '-q' + qi;
+      var opts = item.ordered ? item.choices.slice() : shuffle(item.choices);
+      opts.forEach(function (ch, ci) {
+        var id = name + '-' + ci;
+        var lab = el('label', { class: 'choice', for: id });
+        var inp = el('input', { type: 'radio', name: name, id: id });
+        inp.value = ch.ok ? '1' : '0';
+        lab.appendChild(inp); lab.appendChild(el('span', null, ch.t));
+        fs.appendChild(lab);
+      });
+      var btn = el('button', { type: 'button', class: 'btn' }, 'Check answer');
+      var fb = el('div', { class: 'feedback', 'aria-live': 'polite' });
+      btn.addEventListener('click', function () {
+        var pick = fs.querySelector('input:checked');
+        if (!pick) { fb.className = 'feedback wrong'; fb.textContent = 'Choose an answer first.'; return; }
+        var right = pick.value === '1';
+        fs.querySelectorAll('.choice').forEach(function (c) {
+          c.classList.remove('is-right', 'is-wrong');
+          var i = c.querySelector('input');
+          if (i.value === '1') c.classList.add('is-right');
+          else if (i === pick) c.classList.add('is-wrong');
+          i.disabled = true;
+        });
+        fb.className = 'feedback ' + (right ? 'right' : 'wrong'); fb.textContent = '';
+        fb.appendChild(el('span', { class: 'verdict' }, right ? 'Correct. ' : 'Not quite. '));
+        fb.appendChild(document.createTextNode(item.why));
+        btn.disabled = true;
+        if (!answered[qi]) { answered[qi] = true; if (right) correct++; }
+        var n = Object.keys(answered).length;
+        if (n === items.length) {
+          var best = Math.max(correct, (state.quiz && state.quiz.best) || 0);
+          state.quiz = { score: correct, total: items.length, best: best }; save();
+          summary.textContent = 'You scored ' + correct + ' of ' + items.length + '. Best so far: ' + best + '. This check is practice only and is not graded.';
+          retry.hidden = false;
+        } else summary.textContent = n + ' of ' + items.length + ' answered.';
+      });
+      fs.appendChild(btn); fs.appendChild(fb); root.appendChild(fs);
+    });
+    var retry = el('button', { type: 'button', class: 'btn ghost' }, 'Try the check again');
+    retry.hidden = true;
+    retry.addEventListener('click', function () { root.textContent = ''; quiz(root, items); root.querySelector('input').focus(); });
+    root.appendChild(summary); root.appendChild(retry);
+    if (state.quiz) summary.textContent = 'Last attempt: ' + state.quiz.score + ' of ' + state.quiz.total + '. Best: ' + state.quiz.best + '.';
+  }
+
+  function init() { initCopy(); initUnits(); initChecks(); }
+
+  return { init: init, quiz: quiz, el: el, shuffle: shuffle, announce: announce, read: read, write: write, state: state, save: save };
+})();
+
+(function () {
+  'use strict';
+  NETW.init();
+
+  /* stack comparison */
+  var LAYERS = {
+    'vm-app': ['Applications in VMs', 'Each app runs inside its own guest operating system. Isolation is strong, but each copy carries a full OS.'],
+    'vm-libs': ['Libraries in each VM', 'Installed into the guest OS with its package manager. Each VM must be patched separately.'],
+    'vm-guest': ['Guest OS and kernel', 'A complete operating system per VM: its own kernel, init system and services. This is where most of a VM\u2019s size and boot time comes from.'],
+    'vm-hyp': ['Hypervisor', 'Emulates virtual hardware (CPUs, memory, disks, network cards) for each guest. Examples include KVM, VMware ESXi and Hyper-V.'],
+    'vm-host': ['Host OS and kernel (VM side)', 'Runs the hypervisor. The guests never use this kernel directly; they talk to virtual hardware.'],
+    'hw': ['Hardware', 'The physical server. Both approaches share it among many workloads.'],
+    'c-app': ['Applications in containers', 'Each app is an ordinary Linux process, isolated with namespaces, limited with cgroups and confined by SELinux.'],
+    'c-libs': ['Libraries from the image', 'User-space files packaged in the image. Two containers can carry different, even conflicting, library versions.'],
+    'c-engine': ['Container engine', 'Podman pulls images, prepares the filesystem layers and asks an OCI runtime (crun or runc) to start the process. It emulates no hardware.'],
+    'c-host': ['The one shared kernel', 'Every container on this host uses this kernel. There is no guest OS to boot, which is why containers start in a fraction of a second. It is also why a kernel vulnerability can affect every container.']
+  };
+  var detail = document.getElementById('stack-detail');
+  var layerBtns = document.querySelectorAll('.layer');
+  layerBtns.forEach(function (b) {
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', function () {
+      var k = b.getAttribute('data-layer');
+      layerBtns.forEach(function (o) { o.setAttribute('aria-pressed', o.getAttribute('data-layer') === k ? 'true' : 'false'); });
+      detail.textContent = '';
+      detail.appendChild(NETW.el('strong', null, LAYERS[k][0]));
+      detail.appendChild(document.createTextNode(LAYERS[k][1]));
+    });
+  });
+
+  /* namespace explorer */
+  var term = document.getElementById('ns-term');
+  var nsBoxes = document.querySelectorAll('input[data-ns]');
+  function nsOn(n) { return document.querySelector('input[data-ns="' + n + '"]').checked; }
+  function line(parts) {
+    var frag = document.createDocumentFragment();
+    parts.forEach(function (p) {
+      if (typeof p === 'string') frag.appendChild(document.createTextNode(p));
+      else frag.appendChild(NETW.el('span', { class: p[0] }, p[1]));
+    });
+    frag.appendChild(document.createTextNode('\n'));
+    return frag;
+  }
+  function renderNs() {
+    var pid = nsOn('pid'), net = nsOn('net'), mnt = nsOn('mnt'), uts = nsOn('uts'), usr = nsOn('user');
+    var host = uts ? '3f9c2a1b7d04' : 'workstation.lab.example.com';
+    term.textContent = '';
+    var P = ['p', 'app$ '];
+    term.appendChild(line([P, 'ps -e -o pid,user,comm']));
+    term.appendChild(line(['    PID USER     COMMAND']));
+    if (pid) {
+      term.appendChild(line([['hl', '      1 ' + (usr ? 'root    ' : 'student ') + ' httpd']]));
+      term.appendChild(line(['      8 ' + (usr ? 'root    ' : 'student ') + ' httpd']));
+    } else {
+      ['      1 root     systemd', '    712 root     sshd', '    901 root     NetworkManager', '   1450 student  bash', '   2231 student  httpd', '   2238 student  httpd'].forEach(function (l) { term.appendChild(line([l])); });
+      term.appendChild(line(['    …  (hundreds more host processes)']));
+    }
+    term.appendChild(line([]));
+    term.appendChild(line([P, 'ip -br addr']));
+    if (net) {
+      term.appendChild(line(['lo      UNKNOWN  127.0.0.1/8']));
+      term.appendChild(line([['hl', 'eth0    UP       10.88.0.5/16']]));
+    } else {
+      term.appendChild(line(['lo      UNKNOWN  127.0.0.1/8']));
+      term.appendChild(line(['ens3    UP       172.25.250.9/24']));
+      term.appendChild(line(['virbr0  DOWN     192.168.122.1/24']));
+    }
+    term.appendChild(line([]));
+    term.appendChild(line([P, 'ls /']));
+    term.appendChild(line([mnt ? ['hl', 'bin  etc  opt  usr  var  …   (files from the ubi9/httpd-24 image)'] : 'bin  boot  etc  home  opt  root  srv  usr  var  …   (the host filesystem)']));
+    term.appendChild(line([]));
+    term.appendChild(line([P, 'hostname']));
+    term.appendChild(line([uts ? ['hl', host] : host]));
+    term.appendChild(line([]));
+    term.appendChild(line([P, 'id']));
+    term.appendChild(line([usr ? ['hl', 'uid=0(root) gid=0(root)  \u2190 uid 1000 on the host'] : 'uid=1000(student) gid=1000(student)']));
+  }
+  nsBoxes.forEach(function (b) { b.addEventListener('change', renderNs); });
+  function setAll(v) { nsBoxes.forEach(function (b) { b.checked = v; }); renderNs(); NETW.announce(v ? 'All namespaces on, like a rootless container' : 'All namespaces off, like a plain process'); }
+  document.getElementById('ns-none').addEventListener('click', function () { setAll(false); });
+  document.getElementById('ns-all').addEventListener('click', function () { setAll(true); });
+  renderNs();
+
+  /* cgroup demo */
+  var used = 0, killed = false;
+  var sel = document.getElementById('cg-limit'), meter = document.getElementById('cg-meter');
+  var txt = document.getElementById('cg-text'), st = document.getElementById('cg-status');
+  var addBtn = document.getElementById('cg-add'), cmd = document.querySelector('#cg-cmd .c');
+  function paintCg() {
+    var lim = Number(sel.value);
+    meter.querySelector('i').style.width = Math.min(100, used / lim * 100) + '%';
+    meter.classList.toggle('over', killed);
+    txt.textContent = (killed ? 'Killed at ' : '') + used + ' MiB used of ' + lim + ' MiB';
+    cmd.textContent = 'podman run -d --memory ' + lim + 'm registry.access.redhat.com/ubi9/httpd-24';
+  }
+  addBtn.addEventListener('click', function () {
+    if (killed) return;
+    used += 96;
+    if (used > Number(sel.value)) {
+      killed = true; addBtn.disabled = true;
+      st.className = 'cg-status bad';
+      st.textContent = 'The kernel\u2019s OOM killer ended the container. podman ps -a would show: Exited (137).';
+    } else { st.className = 'cg-status'; st.textContent = 'Container running, ' + (Number(sel.value) - used) + ' MiB of headroom left.'; }
+    paintCg();
+  });
+  function resetCg() { used = 0; killed = false; addBtn.disabled = false; st.className = 'cg-status'; st.textContent = 'Container running.'; paintCg(); }
+  document.getElementById('cg-reset').addEventListener('click', resetCg);
+  sel.addEventListener('change', resetCg);
+  paintCg();
+
+  /* quiz */
+  NETW.quiz(document.getElementById('quiz'), [
+    { q: 'A container built from an Ubuntu-based image runs on a RHEL 9 host. Which kernel does it use?',
+      choices: [{ t: 'The RHEL 9 host kernel', ok: true }, { t: 'An Ubuntu kernel packaged in the image' }, { t: 'A kernel supplied by Podman' }, { t: 'Whichever kernel the image\u2019s base layer specifies' }],
+      why: 'Containers share the host kernel. The image supplies only user-space files such as libraries and tools.' },
+    { q: 'Which kernel feature limits how much memory a container may use?',
+      choices: [{ t: 'Control groups (cgroups)', ok: true }, { t: 'The mount namespace' }, { t: 'SELinux' }, { t: 'Seccomp' }],
+      why: 'cgroups account for and limit resources such as memory, CPU and the number of processes. Namespaces control what a process can see, not how much it can use.' },
+    { q: 'Inside a container, ps shows the application as PID 1. Which namespace causes this?',
+      choices: [{ t: 'PID namespace', ok: true }, { t: 'UTS namespace' }, { t: 'User namespace' }, { t: 'Network namespace' }],
+      why: 'A PID namespace gives the process its own numbering, starting at 1, and hides host processes.' },
+    { q: 'What prevents two containers running as the same user from reading each other\u2019s files?',
+      choices: [{ t: 'Each container gets unique SELinux categories (MCS labels)', ok: true }, { t: 'Each container gets its own kernel' }, { t: 'Seccomp blocks the open() system call' }, { t: 'cgroups assign each container separate disk space' }],
+      why: 'SELinux labels each container with a unique category pair such as s0:c142,c871, so even with matching user IDs the policy denies access across containers.' },
+    { q: 'Why is a digest more reliable than a tag for identifying an image?',
+      choices: [{ t: 'A digest is a hash of the contents and can never point to a different image', ok: true }, { t: 'Digests are shorter and easier to type' }, { t: 'Tags only work with Docker, not Podman' }, { t: 'A digest also includes the registry password' }],
+      why: 'Tags are labels the publisher can move. A digest is derived from the image content, so it always identifies exactly the same image.' },
+    { q: 'You edit a config file inside a running container, then delete the container and start a new one from the same image. What happens to your change?',
+      choices: [{ t: 'It is gone, because it lived in the deleted container\u2019s writable layer', ok: true }, { t: 'It is saved into the image automatically' }, { t: 'It is kept because the new container reuses the old writable layer' }, { t: 'It is kept only if the container ran rootless' }],
+      why: 'Image layers are read-only. Changes go to a per-container writable layer that is removed with the container.' },
+    { q: 'Which tool can inspect an image\u2019s metadata in a remote registry without pulling the image?',
+      choices: [{ t: 'Skopeo', ok: true }, { t: 'Buildah' }, { t: 'conmon' }, { t: 'crun' }],
+      why: 'skopeo inspect reads image metadata directly from the registry. Buildah builds images, conmon monitors containers and crun is a low-level runtime.' },
+    { q: 'What does it mean that Podman is daemonless?',
+      choices: [{ t: 'No long-running central service manages containers; each podman command does the work itself', ok: true }, { t: 'Podman cannot run containers in the background' }, { t: 'Podman requires systemd to be disabled' }, { t: 'Containers stop when you log out, always' }],
+      why: 'Podman starts containers directly, leaving a small conmon process to monitor each one. There is no root-owned daemon that every command depends on.' }
+  ]);
+})();
+</script>
+</body>
+</html>

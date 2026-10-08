@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 4: Custom Container Images | NETW 112 Containers &amp; Orchestration</title>
+<meta name="description" content="NETW 112 Week 4. Write Containerfiles, understand layers and the build cache, combine ENTRYPOINT and CMD, build non-root images that run on OpenShift, and keep images small.">
+<style>:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#E9EEF1; --ink:#17212B; --muted:#4A5866;
+  --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0;
+  --signal:#7E4C00; --signal-bg:#FFF3DC; --signal-line:#D9A24A;
+  --ok:#1C6A39; --ok-bg:#E3F4E8; --bad:#A1252A; --bad-bg:#FBE6E6;
+  --term-bg:#0F161D; --term-fg:#D3DFE7; --term-dim:#8FA3B1; --term-prompt:#7FD3C9; --term-err:#FF9C9C; --term-ok:#A8E6B5;
+  --steel-a:#C7D2DA; --steel-b:#B7C4CE;
+  --sans:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem; --s7:3rem; --s8:4.5rem;
+  --measure:68ch; --radius-sm:4px; --radius:8px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0E141A; --surface:#151E27; --surface-2:#1C2833; --ink:#E2E9EF; --muted:#A3B2BF;
+    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A;
+    --signal:#F0B65C; --signal-bg:#2A2214; --signal-line:#8A6526;
+    --ok:#74D19B; --ok-bg:#15301F; --bad:#F2898C; --bad-bg:#3A1C1E;
+    --term-bg:#080C10; --steel-a:#273440; --steel-b:#22303B;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:1rem;line-height:1.55}
+a{color:var(--accent);text-underline-offset:.15em}
+a:hover{color:var(--accent-strong)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:2px}
+.skip-link{position:absolute;left:var(--s4);top:-4rem;background:var(--accent);color:var(--accent-ink);padding:var(--s3) var(--s4);z-index:100;border-radius:var(--radius-sm);font-weight:600}
+.skip-link:focus{top:var(--s4)}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+img,svg{max-width:100%}
+code{overflow-wrap:anywhere}
+pre code,pre .c{overflow-wrap:normal}
+
+/* top bar */
+.topbar{border-bottom:1px solid var(--line);background:var(--surface)}
+.topbar-inner{max-width:76rem;margin:0 auto;padding:var(--s2) var(--s4);display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;justify-content:space-between}
+.brand{font-weight:600;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;gap:var(--s2);min-height:44px}
+.brand-code{font-family:var(--mono);font-size:.85rem;background:var(--ink);color:var(--surface);padding:.1rem .4rem;border-radius:var(--radius-sm)}
+.weeknav{display:flex;gap:var(--s2);flex-wrap:wrap}
+.weeknav a,.weeknav span{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);text-decoration:none;font-size:.9rem}
+.weeknav span{color:var(--muted)}
+
+/* module masthead */
+.masthead{max-width:76rem;margin:0 auto;padding:var(--s7) var(--s4) var(--s5)}
+.masthead .weekno{font-family:var(--mono);color:var(--accent);font-size:1rem;margin:0}
+.masthead h1{font-size:clamp(2rem,5vw,3.25rem);line-height:1.08;margin:var(--s2) 0 var(--s4);letter-spacing:-.015em;font-weight:600;max-width:20ch}
+.deck{font-family:var(--serif);font-size:1.2rem;line-height:1.6;max-width:var(--measure);color:var(--muted);margin:0 0 var(--s5)}
+.meta{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s6);margin:0;padding:0}
+.meta div{min-width:9rem}
+.meta dt{font-size:.8rem;color:var(--muted)}
+.meta dd{margin:0;font-weight:600}
+.progress-wrap{margin-top:var(--s5);max-width:28rem}
+.progress-label{font-size:.85rem;color:var(--muted);display:flex;justify-content:space-between}
+.bar{height:10px;background:var(--surface-2);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* layout */
+.layout{max-width:76rem;margin:0 auto;padding:0 var(--s4) var(--s8);display:grid;grid-template-columns:1fr;gap:var(--s6)}
+@media (min-width:62rem){.layout{grid-template-columns:15rem minmax(0,1fr)}}
+.toc{font-size:.92rem}
+.toc details{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:var(--s2) var(--s3)}
+.toc summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+@media (min-width:62rem){
+  .toc{position:sticky;top:var(--s4);align-self:start;max-height:calc(100vh - 2rem);overflow:auto}
+  .toc details{border:0;background:transparent;padding:0}
+  .toc summary{pointer-events:none;list-style:none}
+  .toc summary::-webkit-details-marker{display:none}
+}
+.toc ol{list-style:none;margin:var(--s2) 0 0;padding:0;counter-reset:t}
+.toc li{counter-increment:t}
+.toc a{display:flex;gap:var(--s2);align-items:baseline;padding:var(--s2);min-height:40px;text-decoration:none;color:var(--ink);border-left:3px solid transparent}
+.toc a::before{content:counter(t);font-family:var(--mono);font-size:.8rem;color:var(--muted);min-width:1.4em}
+.toc a[aria-current="true"]{border-left-color:var(--accent);background:var(--accent-soft)}
+.toc .tick{margin-left:auto;color:var(--ok);font-weight:700}
+
+/* content */
+main{min-width:0}
+.unit{padding:var(--s6) 0 var(--s5);border-top:1px solid var(--line);scroll-margin-top:var(--s4)}
+.unit:first-child{border-top:0;padding-top:0}
+.unit>h2{font-size:clamp(1.45rem,3vw,1.9rem);line-height:1.2;margin:0 0 var(--s4);font-weight:600;letter-spacing:-.01em;display:flex;gap:var(--s3);align-items:baseline}
+.unit>h2 .n{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:500}
+.unit h3{font-size:1.15rem;margin:var(--s6) 0 var(--s2);font-weight:600}
+.prose{font-family:var(--serif);font-size:1.075rem;line-height:1.7;max-width:var(--measure)}
+.prose p,.prose ul,.prose ol{margin:0 0 var(--s4)}
+.prose li{margin-bottom:var(--s2)}
+.prose code,.inline-code{overflow-wrap:anywhere;font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:.08em .32em;border-radius:3px}
+.prose strong{font-family:var(--sans);font-weight:600;font-size:.97em}
+.objectives{max-width:var(--measure);padding-left:1.25rem;font-family:var(--serif);font-size:1.075rem;line-height:1.65}
+.objectives li{margin-bottom:var(--s2)}
+
+/* callouts */
+.callout{max-width:var(--measure);border-left:4px solid var(--accent);background:var(--surface);padding:var(--s3) var(--s4);margin:var(--s5) 0;border-radius:0 var(--radius) var(--radius) 0;font-size:.98rem}
+.callout>p{margin:0 0 var(--s2)}.callout>p:last-child{margin:0}
+.callout .label{font-weight:600;display:block;margin-bottom:var(--s1)}
+.callout.exam{border-left-color:var(--signal-line);background:var(--signal-bg)}
+.callout.exam .label{color:var(--signal)}
+.callout.warn{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.warn .label{color:var(--bad)}
+
+/* command blocks */
+.cmd{position:relative;max-width:var(--measure);margin:var(--s4) 0;background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s4);padding-right:5.5rem;font-family:var(--mono);font-size:.88rem;line-height:1.55;overflow-x:auto;white-space:pre}
+.cmd .p{color:var(--term-prompt);user-select:none}
+.cmd .o{color:var(--term-dim)}
+.copy-btn{position:absolute;top:var(--s2);right:var(--s2);min-height:36px;min-width:44px;padding:0 var(--s3);background:transparent;color:var(--term-fg);border:1px solid var(--term-dim);border-radius:var(--radius-sm);font-family:var(--sans);font-size:.8rem;cursor:pointer}
+.copy-btn:hover{border-color:var(--term-prompt);color:var(--term-prompt)}
+
+/* tables */
+.table-wrap{overflow-x:auto;max-width:100%;margin:var(--s4) 0}
+table{border-collapse:collapse;min-width:32rem;font-size:.94rem}
+th,td{text-align:left;padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;background:var(--surface-2)}
+td code{font-family:var(--mono);font-size:.86rem}
+
+/* buttons */
+.btn{min-height:44px;min-width:44px;padding:0 var(--s4);border-radius:var(--radius-sm);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:600 .95rem var(--sans);cursor:pointer}
+.btn:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.done-row{margin-top:var(--s5);display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
+.done-btn[aria-pressed="true"]{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.done-btn[aria-pressed="true"]::before{content:"✓ "}
+
+/* interactive frame */
+.lab-frame{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:var(--s5);margin:var(--s5) 0}
+.lab-frame>h3:first-child{margin-top:0}
+.hint{color:var(--muted);font-size:.92rem;max-width:var(--measure)}
+
+/* quiz */
+.quiz-q{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:var(--s4);margin:0 0 var(--s4);background:var(--surface);max-width:46rem}
+.quiz-q legend{overflow-wrap:anywhere;max-width:100%;font-weight:600;padding:0 var(--s2);font-size:1.02rem}
+.quiz-q .qn{font-family:var(--mono);color:var(--accent);margin-right:var(--s2)}
+.choice{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s2) var(--s3);min-height:44px;border-radius:var(--radius-sm);cursor:pointer}
+.choice:hover{background:var(--surface-2)}
+.choice>span{overflow-wrap:anywhere}
+.choice input{margin-top:.3rem;width:1.1rem;height:1.1rem;flex:none}
+.choice.is-right{background:var(--ok-bg)}
+.choice.is-wrong{background:var(--bad-bg)}
+.feedback{margin-top:var(--s3);font-size:.96rem}
+.feedback .verdict{font-weight:700}
+.feedback.right .verdict{color:var(--ok)}
+.feedback.wrong .verdict{color:var(--bad)}
+.quiz-summary{font-weight:600;margin:var(--s3) 0}
+
+/* lab bridge */
+.bridge{border:2px solid var(--signal-line);background:var(--signal-bg);border-radius:var(--radius);padding:var(--s5);max-width:52rem}
+.bridge h3{margin-top:0;color:var(--signal)}
+.bridge ol,.bridge ul{font-family:var(--serif);font-size:1.05rem;line-height:1.65;padding-left:1.25rem}
+.checklist{list-style:none;padding:0!important}
+.checklist li{display:flex;gap:var(--s3);align-items:flex-start;margin-bottom:var(--s2)}
+.checklist input{width:1.2rem;height:1.2rem;margin-top:.35rem;flex:none}
+
+/* footer */
+.site-foot{border-top:1px solid var(--line);background:var(--surface);font-size:.88rem;color:var(--muted)}
+.site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
+.site-foot p{margin:0 0 var(--s2);max-width:80ch}
+@media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+
+.wb{display:grid;grid-template-columns:1fr;gap:var(--s4)}
+.wb>*{min-width:0}
+@media (min-width:70rem){.wb{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.wb-tools{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:flex-end;margin-bottom:var(--s3)}
+.wb-tools label{display:block;font-weight:600;font-size:.9rem;margin-bottom:var(--s1)}
+.wb-tools select,.wb-tools input[type=text]{min-height:44px;font:inherit;padding:0 var(--s2);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)}
+.wb-tools input[type=text]{font-family:var(--mono);width:11rem}
+.chk{display:flex;align-items:center;gap:var(--s2);min-height:44px;font-size:.92rem}
+.chk input{width:1.15rem;height:1.15rem}
+.editor-wrap label{font-weight:600;display:block;margin-bottom:var(--s2)}
+.editor{width:100%;min-height:22rem;resize:vertical;background:var(--term-bg);color:var(--term-fg);border:1px solid var(--line);border-radius:var(--radius);padding:var(--s3) var(--s4);font:.86rem/1.6 var(--mono);tab-size:4;white-space:pre;overflow:auto}
+.ctx{font:.82rem var(--mono);color:var(--muted);margin:var(--s2) 0 0}
+.buildlog{background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s3) var(--s4);font:.82rem/1.5 var(--mono);white-space:pre;overflow:auto;min-height:12rem;max-height:24rem;margin:0}
+.buildlog .cache{color:var(--term-ok)}
+.buildlog .miss{color:var(--term-prompt)}
+.buildlog .err{color:var(--term-err)}
+.stats{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s5);margin:var(--s3) 0}
+.stats div{min-width:7rem}
+.stats dt{font-size:.8rem;color:var(--muted)}
+.stats dd{margin:0;font:600 1.15rem var(--mono)}
+.review{list-style:none;padding:0;margin:var(--s3) 0 0}
+.review li{border-left:4px solid var(--line);padding:var(--s2) var(--s3);margin-bottom:var(--s2);background:var(--surface);font-size:.94rem}
+.review li.problem{border-left-color:var(--bad)}
+.review li.tip{border-left-color:var(--signal-line)}
+.review li.good{border-left-color:var(--ok)}
+.review .sev{font-weight:700;margin-right:var(--s2)}
+.review li.problem .sev{color:var(--bad)}
+.review li.tip .sev{color:var(--signal)}
+.review li.good .sev{color:var(--ok)}
+.review .ln{font:.8rem var(--mono);color:var(--muted);margin-right:var(--s2)}
+.ec-grid{display:grid;grid-template-columns:1fr;gap:var(--s3);max-width:52rem}
+@media (min-width:44rem){.ec-grid{grid-template-columns:repeat(3,1fr)}}
+.ec-grid label{display:block;font-weight:600;font-size:.9rem;margin-bottom:var(--s1)}
+.ec-grid select{width:100%;min-height:44px;font:.85rem var(--mono);padding:0 var(--s2);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)}
+.ec-result{margin-top:var(--s4);max-width:52rem}
+.ec-result .proc{display:block;background:var(--term-bg);color:var(--term-ok);font:.92rem var(--mono);padding:var(--s3) var(--s4);border-radius:var(--radius);overflow-x:auto;white-space:pre}
+.ec-result p{margin:var(--s2) 0 0}
+</style>
+</head>
+<body data-module="w04">
+<a href="#main" class="skip-link">Skip to main content</a>
+<div id="sr-status" class="vh" role="status" aria-live="polite"></div>
+
+<header>
+  <div class="topbar"><div class="topbar-inner">
+    <a class="brand" href="index.html"><span class="brand-code">NETW 112</span> Course home</a>
+    <nav class="weeknav" aria-label="Week navigation"><a href="week03.html">Previous: Week 3</a><span>Week 5 coming soon</span></nav>
+  </div></div>
+  <div class="masthead">
+    <p class="weekno">Week 4</p>
+    <h1>Building your own images</h1>
+    <p class="deck">Until now you've run images other people built. This week you write a Containerfile, the recipe for an image, and learn the habits that make images small, fast to rebuild and able to run anywhere, including on OpenShift.</p>
+    <dl class="meta">
+      <div><dt>Red Hat course</dt><dd>DO188, Chapter 4 topics</dd></div>
+      <div><dt>Session type</dt><dd>Lab, 1 graded</dd></div>
+      <div><dt>Course outcome</dt><dd>Outcome 2</dd></div>
+      <div><dt>Time</dt><dd>About 3.5 hours with the lab</dd></div>
+    </dl>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Your progress this week</span><span id="progress-count">0 of 0 sections</span></div>
+      <div class="bar" id="progress" role="progressbar" aria-label="Week 4 progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Sections in this week">
+    <details open><summary>In this week</summary>
+      <ol>
+        <li><a href="#goals">Goals</a></li>
+        <li><a href="#cf">What a Containerfile is</a></li>
+        <li><a href="#instr">The instructions</a></li>
+        <li><a href="#cache">Layers and the build cache</a></li>
+        <li><a href="#ec">ENTRYPOINT and CMD</a></li>
+        <li><a href="#anywhere">Images that run anywhere</a></li>
+        <li><a href="#small">Keeping images small</a></li>
+        <li><a href="#workbench">Containerfile workbench</a></li>
+        <li><a href="#check">Knowledge check</a></li>
+        <li><a href="#lab">Lab bridge</a></li>
+        <li><a href="#cheat">Cheat sheet</a></li>
+      </ol>
+    </details>
+  </nav>
+
+<main id="main">
+  <section class="unit" id="goals" data-unit>
+    <h2><span class="n">1</span>Goals</h2>
+    <p class="prose">By the end of this week you should be able to:</p>
+    <ul class="objectives">
+      <li>Write a Containerfile and build it with <code class="inline-code">podman build</code>.</li>
+      <li>Choose the right instruction for each job, including COPY versus ADD and ARG versus ENV.</li>
+      <li>Order instructions so the build cache saves you time.</li>
+      <li>Predict the command a container runs from its ENTRYPOINT, CMD and <code class="inline-code">podman run</code> arguments.</li>
+      <li>Build images that run as a non-root user and work under OpenShift's random user IDs.</li>
+      <li>Reduce image size with careful RUN instructions, minimal base images and multi-stage builds.</li>
+    </ul>
+  </section>
+
+  <section class="unit" id="cf" data-unit>
+    <h2><span class="n">2</span>What a Containerfile is</h2>
+    <div class="prose">
+      <p>A <strong>Containerfile</strong> is a plain text file of instructions, read top to bottom, that turns a base image into a new image. It uses exactly the same format as a Dockerfile, and Podman accepts either name. Here is a small but complete one:</p>
+    </div>
+    <pre class="cmd"><span class="o"># Containerfile</span>
+<span class="c">FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4
+LABEL description="NETW 112 hello page"
+RUN microdnf install -y httpd &amp;&amp; microdnf clean all
+COPY index.html /var/www/html/
+EXPOSE 80
+CMD ["httpd", "-D", "FOREGROUND"]</span></pre>
+    <div class="prose">
+      <p>You build it from the directory that holds it:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman build -t myhello:1.0 .</span>
+<span class="o">STEP 1/5: FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4
+STEP 2/5: LABEL description="NETW 112 hello page"
+--> 5b0c…
+STEP 3/5: RUN microdnf install -y httpd &amp;&amp; microdnf clean all
+…
+COMMIT myhello:1.0
+Successfully tagged localhost/myhello:1.0</span></pre>
+    <div class="prose">
+      <p>Two details trip people up. The final <code>.</code> is the <strong>build context</strong>: the directory whose files COPY can see. COPY can never reach outside it. And <code>-t</code> names the result; without a registry in the name, the image lands in <code>localhost/</code>, exactly like <code>podman tag</code> last week. Use <code>-f</code> if the file has a different name or location.</p>
+      <p>Everything in the context directory is sent to the build. Keep it lean with a <code>.containerignore</code> file that lists what to leave out, such as <code>.git</code>, build output and local secrets.</p>
+    </div>
+    <div class="callout warn"><span class="label">About that example</span>
+      <p>It works as root, but it listens on port 80 and runs as root. Sections 6 and 7 fix both problems, and the workbench lets you watch the fixes change the result.</p></div>
+  </section>
+
+  <section class="unit" id="instr" data-unit>
+    <h2><span class="n">3</span>The instructions</h2>
+    <div class="table-wrap"><table>
+      <caption class="vh">Containerfile instructions</caption>
+      <thead><tr><th scope="col">Instruction</th><th scope="col">What it does</th><th scope="col">Note</th></tr></thead>
+      <tbody>
+        <tr><td><code>FROM</code></td><td>Sets the base image. Must come first (only ARG may precede it).</td><td>Use a fully qualified, pinned reference.</td></tr>
+        <tr><td><code>RUN</code></td><td>Runs a command during the build and saves the resulting files as a layer.</td><td>Runs as the current USER.</td></tr>
+        <tr><td><code>COPY</code></td><td>Copies files from the build context (or another stage) into the image.</td><td><code>--chown=</code> sets ownership.</td></tr>
+        <tr><td><code>ADD</code></td><td>Like COPY, but also unpacks local tar archives and can fetch URLs.</td><td>Prefer COPY unless you need those extras.</td></tr>
+        <tr><td><code>WORKDIR</code></td><td>Sets the working directory for later instructions and for the container.</td><td>Use it instead of <code>RUN cd</code>.</td></tr>
+        <tr><td><code>ENV</code></td><td>Sets environment variables in the build and in every container.</td><td>Never put secrets here; anyone with the image can read them.</td></tr>
+        <tr><td><code>ARG</code></td><td>Defines a build-time variable, set with <code>--build-arg</code>.</td><td>Not present in running containers.</td></tr>
+        <tr><td><code>LABEL</code></td><td>Adds metadata such as description, version or maintainer.</td><td>Shows up in <code>skopeo inspect</code>.</td></tr>
+        <tr><td><code>USER</code></td><td>Sets the user for later RUN instructions and for the container.</td><td>Prefer a numeric UID.</td></tr>
+        <tr><td><code>EXPOSE</code></td><td>Documents the port the app listens on.</td><td>Doesn't publish anything; you still need <code>-p</code>.</td></tr>
+        <tr><td><code>ENTRYPOINT</code></td><td>The executable the container always runs.</td><td>See section 5.</td></tr>
+        <tr><td><code>CMD</code></td><td>Default command, or default arguments to ENTRYPOINT.</td><td>Replaced by <code>podman run</code> arguments.</td></tr>
+        <tr><td><code>VOLUME</code></td><td>Marks a path whose data should live outside the container.</td><td>Covered in Week 5.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="unit" id="cache" data-unit>
+    <h2><span class="n">4</span>Layers and the build cache</h2>
+    <div class="prose">
+      <p>Each RUN, COPY and ADD adds a filesystem layer; the other instructions only change the image's metadata. Podman remembers every step it has built. On the next build it walks down the Containerfile, and as long as an instruction is unchanged (and, for COPY and ADD, the files it copies are unchanged) it reuses the saved result instead of running it again. You'll see <code>--> Using cache</code> in the output.</p>
+      <p>The cache breaks at the <em>first</em> step that changed, and every step after that is rebuilt, even if those later lines didn't change. That leads to the most important ordering rule in this chapter: <strong>put what changes least at the top</strong>. Install packages first; copy your application code last. Then an edit to <code>index.html</code> rebuilds one quick COPY step instead of reinstalling every package.</p>
+      <p>Layers also explain image size. Files deleted in a later layer still exist in the earlier one, so</p>
+    </div>
+    <pre class="cmd"><span class="c">RUN dnf install -y httpd
+RUN dnf clean all</span></pre>
+    <div class="prose">
+      <p>doesn't shrink anything: the package cache is still stored in the first layer. Clean up in the <em>same</em> RUN that made the mess:</p>
+    </div>
+    <pre class="cmd"><span class="c">RUN dnf install -y httpd &amp;&amp; \
+    dnf clean all</span></pre>
+  </section>
+
+  <section class="unit" id="ec" data-unit>
+    <h2><span class="n">5</span>ENTRYPOINT and CMD</h2>
+    <div class="prose">
+      <p>Both instructions concern what runs when the container starts, and they combine in ways that are easy to get wrong:</p>
+      <ul>
+        <li>With only <strong>CMD</strong>, it is the whole command. Arguments to <code>podman run</code> replace it completely.</li>
+        <li>With <strong>ENTRYPOINT</strong> and <strong>CMD</strong>, ENTRYPOINT is the program and CMD supplies its default arguments. Arguments to <code>podman run</code> replace only the CMD part. Override the entrypoint itself with <code>podman run --entrypoint</code>.</li>
+      </ul>
+      <p>Each instruction also has two forms. The <strong>exec form</strong>, a JSON array such as <code>["httpd", "-D", "FOREGROUND"]</code>, runs the program directly as PID 1. The <strong>shell form</strong>, plain text such as <code>httpd -D FOREGROUND</code>, runs it inside <code>/bin/sh -c</code>. With the shell form, the shell is PID 1 and usually doesn't pass <code>SIGTERM</code> along, so <code>podman stop</code> waits the full 10 seconds and then kills your app. A shell-form ENTRYPOINT also ignores CMD and any run arguments entirely.</p>
+    </div>
+    <div class="lab-frame">
+      <h3>Predict the process</h3>
+      <p class="hint">Choose an ENTRYPOINT, a CMD and the arguments given to <code class="inline-code">podman run</code>. The result shows exactly what runs as PID 1.</p>
+      <div class="ec-grid">
+        <div><label for="ec-ep">ENTRYPOINT</label><select id="ec-ep"><option value="none">(none)</option><option value="exec" selected>["ping"]</option><option value="shell">ping</option></select></div>
+        <div><label for="ec-cmd">CMD</label><select id="ec-cmd"><option value="none">(none)</option><option value="exec" selected>["-c", "3", "localhost"]</option><option value="shell">-c 3 localhost</option><option value="full">["ping", "-c", "1", "localhost"]</option></select></div>
+        <div><label for="ec-args">podman run IMAGE …</label><select id="ec-args"><option value="none" selected>(no arguments)</option><option value="host">redhat.com</option><option value="cmd">echo hi</option></select></div>
+      </div>
+      <div class="ec-result" id="ec-out" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="unit" id="anywhere" data-unit>
+    <h2><span class="n">6</span>Images that run anywhere</h2>
+    <div class="prose">
+      <p>An image that works with <code>podman run</code> on your laptop can still fail in production. The usual reason is that it quietly assumes it runs as root. Build with these habits from the start and the same image will run rootless under Podman and on OpenShift without changes.</p>
+      <ul>
+        <li><strong>Install as root, run as someone else.</strong> Do your package installs and file setup first, then switch with <code>USER 1001</code> near the end. A numeric UID is better than a name because a platform can check it is non-zero without looking anything up.</li>
+        <li><strong>Plan for an unknown UID.</strong> By default OpenShift ignores your USER and runs the container with a random, high UID that belongs to group 0 (root's group, which grants no special privileges). Make every directory the app writes to owned by group 0 and group-writable: <code>chgrp -R 0 DIR &amp;&amp; chmod -R g=u DIR</code>.</li>
+        <li><strong>Listen on a high port.</strong> Non-root processes can't bind ports below 1024, so configure the app for a port such as 8080 and EXPOSE that.</li>
+        <li><strong>Log to standard output.</strong> Then <code>podman logs</code> and OpenShift's logging see everything.</li>
+        <li><strong>Configure with environment variables</strong> and keep secrets out of the image entirely. They'll be supplied at run time, as you'll see with OpenShift secrets in Week 14.</li>
+      </ul>
+    </div>
+    <pre class="cmd"><span class="c">FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4
+RUN microdnf install -y httpd &amp;&amp; microdnf clean all &amp;&amp; \
+    sed -i 's/^Listen 80$/Listen 8080/' /etc/httpd/conf/httpd.conf &amp;&amp; \
+    chgrp -R 0 /var/log/httpd /run/httpd &amp;&amp; \
+    chmod -R g=u /var/log/httpd /run/httpd
+COPY index.html /var/www/html/
+EXPOSE 8080
+USER 1001
+CMD ["httpd", "-D", "FOREGROUND"]</span></pre>
+    <div class="callout warn"><span class="label">Order matters</span>
+      <p>If <code>USER 1001</code> comes before the package install, the build fails: an unprivileged user can't install packages. Switch users after the root-only work is done.</p></div>
+  </section>
+
+  <section class="unit" id="small" data-unit>
+    <h2><span class="n">7</span>Keeping images small</h2>
+    <div class="prose">
+      <p>Smaller images pull faster, start faster and contain fewer packages that could carry vulnerabilities. Four techniques do most of the work:</p>
+      <ul>
+        <li><strong>Start small.</strong> <code>ubi-minimal</code> is roughly half the size of <code>ubi</code>; <code>ubi-micro</code> is smaller still.</li>
+        <li><strong>One RUN per logical task, cleaned up in place.</strong> Chain related commands with <code>&amp;&amp;</code> and remove package caches and temporary files in the same RUN.</li>
+        <li><strong>Install only what you need.</strong> Every package is size and attack surface. Skip editors, compilers and debugging tools in production images.</li>
+        <li><strong>Use a multi-stage build</strong> when you compile code. The first stage has the compiler; the final stage copies in just the finished program. Nothing from the build stage ends up in the final image unless you copy it.</li>
+      </ul>
+    </div>
+    <pre class="cmd"><span class="c">FROM registry.access.redhat.com/ubi9/go-toolset:1.21 AS build
+COPY main.go go.mod ./
+RUN go build -o /tmp/hello .
+
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.4
+COPY --from=build /tmp/hello /usr/local/bin/hello
+USER 1001
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/hello"]</span></pre>
+    <p class="hint">The Go toolchain image is well over a gigabyte. The final image is the small micro base plus one binary.</p>
+  </section>
+
+  <section class="unit" id="workbench" data-unit>
+    <h2><span class="n">8</span>Containerfile workbench</h2>
+    <p class="prose">Edit the Containerfile, then build. The workbench simulates <code class="inline-code">podman build</code>: it shows each step, reports which steps came from the cache, estimates the image size and reviews your file the way an experienced colleague would. Load the starter and work toward a file with no problems. Then build twice, change one line in the middle, and watch which steps rebuild.</p>
+    <div class="lab-frame">
+      <div class="wb-tools">
+        <div><label for="wb-preset">Load an example</label>
+          <select id="wb-preset"><option value="">Choose…</option><option value="starter">Starter (has problems)</option><option value="better">Improved httpd image</option><option value="multi">Multi-stage Go build</option></select></div>
+        <div><label for="wb-tag">Image name (-t)</label><input type="text" id="wb-tag" value="myweb:1.0" spellcheck="false" autocomplete="off"></div>
+        <label class="chk"><input type="checkbox" id="wb-edited"> I edited files in the build context</label>
+        <button type="button" class="btn" id="wb-build">Build</button>
+        <button type="button" class="btn ghost" id="wb-clear">Clear cache</button>
+      </div>
+      <div class="wb">
+        <div class="editor-wrap">
+          <label for="wb-edit">Containerfile</label>
+          <textarea id="wb-edit" class="editor" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+          <p class="ctx">Build context: Containerfile  index.html  app/  start.sh  main.go  go.mod</p>
+        </div>
+        <div>
+          <pre class="buildlog" id="wb-log" aria-live="polite" aria-label="Build output"></pre>
+          <dl class="stats" id="wb-stats"></dl>
+          <h3>Review</h3>
+          <ul class="review" id="wb-review"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="unit" id="check" data-unit>
+    <h2><span class="n">9</span>Knowledge check</h2>
+    <p class="hint">Eight questions, answer order shuffled each time. Practice only; not graded.</p>
+    <div id="quiz"></div>
+  </section>
+
+  <section class="unit" id="lab" data-unit>
+    <h2><span class="n">10</span>Lab bridge</h2>
+    <div class="bridge">
+      <h3>Your graded lab: DO188 Chapter 4 in the OLE</h3>
+      <p class="prose">Complete the Chapter 4 guided exercises, then the end-of-chapter lab. It is graded on completion and correctness.</p>
+      <p class="prose"><strong>Before you start</strong></p>
+      <ul class="checklist">
+        <li><input type="checkbox" id="b1" data-check="b1"><label for="b1">I got the workbench review down to zero problems for the starter file.</label></li>
+        <li><input type="checkbox" id="b2" data-check="b2"><label for="b2">I can predict what runs when an image has both ENTRYPOINT and CMD.</label></li>
+        <li><input type="checkbox" id="b3" data-check="b3"><label for="b3">I know why USER goes after the package installs.</label></li>
+        <li><input type="checkbox" id="b4" data-check="b4"><label for="b4">I read the lab instructions all the way through before typing anything.</label></li>
+      </ul>
+      <p class="prose"><strong>Watch for these during the lab</strong></p>
+      <ul>
+        <li>Build from the directory the lab names, or pass the right context path. "No such file or directory" on COPY almost always means the wrong context.</li>
+        <li>Use the exact image name and tag the lab asks for in <code class="inline-code">-t</code>; the grading checks it.</li>
+        <li>Test the image after building: run it, publish its port, curl it, and check <code class="inline-code">podman logs</code>.</li>
+        <li>If a change doesn't seem to take effect, check whether the step came from the cache. <code class="inline-code">--no-cache</code> forces a full rebuild.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="unit" id="cheat" data-unit>
+    <h2><span class="n">11</span>Cheat sheet</h2>
+    <div class="table-wrap"><table>
+      <caption class="vh">Image building command reference</caption>
+      <thead><tr><th scope="col">Task</th><th scope="col">Command or instruction</th></tr></thead>
+      <tbody>
+        <tr><td>Build from the current directory</td><td><code>podman build -t NAME:TAG .</code></td></tr>
+        <tr><td>Use a differently named file</td><td><code>podman build -f path/Containerfile.prod -t NAME:TAG .</code></td></tr>
+        <tr><td>Pass a build-time variable</td><td><code>podman build --build-arg VERSION=2 -t NAME:TAG .</code></td></tr>
+        <tr><td>Rebuild without the cache</td><td><code>podman build --no-cache -t NAME:TAG .</code></td></tr>
+        <tr><td>See the layers</td><td><code>podman history NAME:TAG</code></td></tr>
+        <tr><td>Override the entrypoint at run time</td><td><code>podman run --entrypoint /bin/bash -it NAME:TAG</code></td></tr>
+        <tr><td>Install and clean in one layer</td><td><code>RUN dnf install -y PKG &amp;&amp; dnf clean all</code></td></tr>
+        <tr><td>Prepare a directory for any UID</td><td><code>RUN chgrp -R 0 DIR &amp;&amp; chmod -R g=u DIR</code></td></tr>
+        <tr><td>Run as non-root</td><td><code>USER 1001</code></td></tr>
+        <tr><td>Copy from a build stage</td><td><code>COPY --from=build /src/app /usr/local/bin/app</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</main>
+</div>
+
+<footer class="site-foot"><div class="inner">
+  <p>Built for <span class="program">NETW 112 Containers &amp; Orchestration</span> · Brookdale Community College · <span class="year">2026</span></p>
+  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat, Red Hat Enterprise Linux and OpenShift are trademarks of Red Hat, Inc. The workbench is a teaching simulation; sizes are rough estimates and examples are simplified.</p>
+</div></footer>
+
+<script>/* NETW 112 shared module runtime. Inlined into every page. */
+var NETW = (function () {
+  'use strict';
+  var MOD = document.body.getAttribute('data-module') || 'hub';
+  var KEY = 'netw112:' + MOD;
+
+  function read(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || null; } catch (e) { return null; }
+  }
+  function write(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage unavailable */ }
+  }
+  var state = read(KEY) || { units: {}, checks: {}, quiz: null, total: 0 };
+  state.units = state.units || {}; state.checks = state.checks || {};
+  function save() { write(KEY, state); }
+
+  function announce(msg) {
+    var r = document.getElementById('sr-status');
+    if (!r) return;
+    r.textContent = '';
+    window.setTimeout(function () { r.textContent = msg; }, 30);
+  }
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function el(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') n.className = attrs[k]; else n.setAttribute(k, attrs[k]);
+    });
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /* ---------- copy buttons ---------- */
+  function initCopy() {
+    document.querySelectorAll('pre.cmd').forEach(function (pre) {
+      var b = el('button', { type: 'button', class: 'copy-btn' }, 'Copy');
+      b.setAttribute('aria-label', 'Copy commands');
+      b.addEventListener('click', function () {
+        var cmds = pre.querySelectorAll('.c');
+        var text = cmds.length ? Array.prototype.map.call(cmds, function (c) { return c.textContent; }).join('\n') : pre.textContent;
+        function ok() { b.textContent = 'Copied'; announce('Commands copied to clipboard'); setTimeout(function () { b.textContent = 'Copy'; }, 1600); }
+        function fallback() {
+          var ta = el('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+          var done = false; try { done = document.execCommand('copy'); } catch (e) { done = false; }
+          document.body.removeChild(ta);
+          if (done) ok(); else { b.textContent = 'Select text'; announce('Copy is blocked here. Select the text and copy it manually.'); }
+        }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
+      });
+      pre.appendChild(b);
+    });
+  }
+
+  /* ---------- units, progress, TOC ---------- */
+  var units = [];
+  function updateProgress() {
+    var done = units.filter(function (u) { return state.units[u.id]; }).length;
+    state.total = units.length; save();
+    var pct = units.length ? Math.round(done / units.length * 100) : 0;
+    var bar = document.getElementById('progress');
+    if (bar) {
+      bar.setAttribute('aria-valuenow', String(pct));
+      bar.querySelector('i').style.width = pct + '%';
+      var lbl = document.getElementById('progress-count');
+      if (lbl) lbl.textContent = done + ' of ' + units.length + ' sections';
+    }
+    document.querySelectorAll('.toc a').forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var t = a.querySelector('.tick');
+      if (state.units[id] && !t) { t = el('span', { class: 'tick' }, '✓'); t.appendChild(el('span', { class: 'vh' }, ' completed')); a.appendChild(t); }
+      if (!state.units[id] && t) a.removeChild(t);
+    });
+  }
+  function initUnits() {
+    document.querySelectorAll('section[data-unit]').forEach(function (s) {
+      units.push(s);
+      var row = el('div', { class: 'done-row' });
+      var b = el('button', { type: 'button', class: 'btn ghost done-btn' });
+      function paint() {
+        var on = !!state.units[s.id];
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.textContent = on ? 'Section complete' : 'Mark section complete';
+      }
+      b.addEventListener('click', function () {
+        state.units[s.id] = !state.units[s.id];
+        if (!state.units[s.id]) delete state.units[s.id];
+        paint(); updateProgress();
+        announce(state.units[s.id] ? 'Section marked complete' : 'Section marked not complete');
+      });
+      paint(); row.appendChild(b); s.appendChild(row);
+    });
+    updateProgress();
+    if ('IntersectionObserver' in window) {
+      var links = {};
+      document.querySelectorAll('.toc a').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting && links[e.target.id]) {
+            Object.keys(links).forEach(function (k) { links[k].removeAttribute('aria-current'); });
+            links[e.target.id].setAttribute('aria-current', 'true');
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px' });
+      units.forEach(function (u) { io.observe(u); });
+    }
+  }
+
+  /* ---------- persistent checklists ---------- */
+  function initChecks() {
+    document.querySelectorAll('input[type=checkbox][data-check]').forEach(function (c) {
+      var k = c.getAttribute('data-check');
+      c.checked = !!state.checks[k];
+      c.addEventListener('change', function () { state.checks[k] = c.checked; save(); });
+    });
+  }
+
+  /* ---------- quiz engine ---------- */
+  function quiz(root, items) {
+    var answered = {}; var correct = 0;
+    var summary = el('p', { class: 'quiz-summary', 'aria-live': 'polite' });
+    items.forEach(function (item, qi) {
+      var fs = el('fieldset', { class: 'quiz-q' });
+      var lg = el('legend'); lg.appendChild(el('span', { class: 'qn' }, String(qi + 1))); lg.appendChild(document.createTextNode(item.q));
+      fs.appendChild(lg);
+      var name = MOD + '-q' + qi;
+      var opts = item.ordered ? item.choices.slice() : shuffle(item.choices);
+      opts.forEach(function (ch, ci) {
+        var id = name + '-' + ci;
+        var lab = el('label', { class: 'choice', for: id });
+        var inp = el('input', { type: 'radio', name: name, id: id });
+        inp.value = ch.ok ? '1' : '0';
+        lab.appendChild(inp); lab.appendChild(el('span', null, ch.t));
+        fs.appendChild(lab);
+      });
+      var btn = el('button', { type: 'button', class: 'btn' }, 'Check answer');
+      var fb = el('div', { class: 'feedback', 'aria-live': 'polite' });
+      btn.addEventListener('click', function () {
+        var pick = fs.querySelector('input:checked');
+        if (!pick) { fb.className = 'feedback wrong'; fb.textContent = 'Choose an answer first.'; return; }
+        var right = pick.value === '1';
+        fs.querySelectorAll('.choice').forEach(function (c) {
+          c.classList.remove('is-right', 'is-wrong');
+          var i = c.querySelector('input');
+          if (i.value === '1') c.classList.add('is-right');
+          else if (i === pick) c.classList.add('is-wrong');
+          i.disabled = true;
+        });
+        fb.className = 'feedback ' + (right ? 'right' : 'wrong'); fb.textContent = '';
+        fb.appendChild(el('span', { class: 'verdict' }, right ? 'Correct. ' : 'Not quite. '));
+        fb.appendChild(document.createTextNode(item.why));
+        btn.disabled = true;
+        if (!answered[qi]) { answered[qi] = true; if (right) correct++; }
+        var n = Object.keys(answered).length;
+        if (n === items.length) {
+          var best = Math.max(correct, (state.quiz && state.quiz.best) || 0);
+          state.quiz = { score: correct, total: items.length, best: best }; save();
+          summary.textContent = 'You scored ' + correct + ' of ' + items.length + '. Best so far: ' + best + '. This check is practice only and is not graded.';
+          retry.hidden = false;
+        } else summary.textContent = n + ' of ' + items.length + ' answered.';
+      });
+      fs.appendChild(btn); fs.appendChild(fb); root.appendChild(fs);
+    });
+    var retry = el('button', { type: 'button', class: 'btn ghost' }, 'Try the check again');
+    retry.hidden = true;
+    retry.addEventListener('click', function () { root.textContent = ''; quiz(root, items); root.querySelector('input').focus(); });
+    root.appendChild(summary); root.appendChild(retry);
+    if (state.quiz) summary.textContent = 'Last attempt: ' + state.quiz.score + ' of ' + state.quiz.total + '. Best: ' + state.quiz.best + '.';
+  }
+
+  function init() { initCopy(); initUnits(); initChecks(); }
+
+  return { init: init, quiz: quiz, el: el, shuffle: shuffle, announce: announce, read: read, write: write, state: state, save: save };
+})();
+
+(function () {
+  'use strict';
+  NETW.init();
+  var el = NETW.el;
+
+  /* ================= ENTRYPOINT / CMD ================= */
+  (function () {
+    var ep = document.getElementById('ec-ep'), cmd = document.getElementById('ec-cmd'), args = document.getElementById('ec-args'), out = document.getElementById('ec-out');
+    var CMDV = { exec: ['-c', '3', 'localhost'], shell: '-c 3 localhost', full: ['ping', '-c', '1', 'localhost'] };
+    var ARGV = { host: ['redhat.com'], cmd: ['echo', 'hi'] };
+    function q(a) { return a.map(function (x) { return /\s/.test(x) ? '"' + x + '"' : x; }).join(' '); }
+    function render() {
+      var e = ep.value, c = cmd.value, a = args.value, proc, why = [], warn = null;
+      var cmdPart = c === 'none' ? [] : (c === 'shell' ? ['/bin/sh', '-c', CMDV.shell] : CMDV[c]);
+      if (e === 'shell') {
+        proc = ['/bin/sh', '-c', 'ping'];
+        why.push('A shell-form ENTRYPOINT runs through /bin/sh -c and ignores both CMD and any podman run arguments.');
+        warn = 'ping gets no target, so it prints a usage error and the container exits. The shell is PID 1, so signals don\u2019t reach ping.';
+      } else if (e === 'exec') {
+        var tail = a !== 'none' ? ARGV[a] : cmdPart;
+        proc = ['ping'].concat(tail);
+        why.push(a !== 'none' ? 'The run arguments replace CMD and are appended to the ENTRYPOINT.' : (c === 'none' ? 'No CMD, so ENTRYPOINT runs with no arguments.' : 'CMD supplies the default arguments to the ENTRYPOINT.'));
+        if (a === 'none' && c === 'shell') warn = 'A shell-form CMD becomes /bin/sh -c "\u2026" and is passed to ping as arguments. ping doesn\u2019t understand them. Use the exec form for CMD when you have an ENTRYPOINT.';
+        else if (a === 'none' && c === 'full') warn = 'CMD repeats the program name, so ping receives "ping" as a hostname. When there is an ENTRYPOINT, CMD should contain only arguments.';
+        else if (a === 'cmd') warn = 'You meant to run echo, but it became arguments to ping. To replace the program, use podman run --entrypoint echo IMAGE hi.';
+        else if (tail.length === 0) warn = 'ping needs a target, so this exits with a usage error.';
+      } else {
+        if (a !== 'none') { proc = ARGV[a]; why.push('With no ENTRYPOINT, the run arguments replace CMD completely.'); if (a === 'host') warn = 'redhat.com isn\u2019t a program, so the container fails to start: executable file not found in $PATH.'; }
+        else if (c === 'none') { proc = ['/bin/bash']; why.push('Neither is set in this image, so the base image\u2019s CMD (/bin/bash for ubi9) runs. With no terminal it exits immediately.'); }
+        else { proc = cmdPart; why.push(c === 'shell' ? 'A shell-form CMD runs through /bin/sh -c.' : 'CMD is the whole command.'); if (c === 'exec' || c === 'shell') warn = 'CMD starts with -c, which isn\u2019t a program. Without an ENTRYPOINT, CMD must name the executable.'; }
+      }
+      out.textContent = '';
+      out.appendChild(el('span', { class: 'proc' }, 'PID 1: ' + q(proc)));
+      why.forEach(function (w) { out.appendChild(el('p', null, w)); });
+      if (warn) { var p = el('p'); p.appendChild(el('strong', null, 'Watch out: ')); p.appendChild(document.createTextNode(warn)); out.appendChild(p); }
+      else { var g = el('p'); g.appendChild(el('strong', null, 'Works: ')); g.appendChild(document.createTextNode('ping runs against ' + proc[proc.length - 1] + ' and the container exits when it finishes.')); out.appendChild(g); }
+    }
+    [ep, cmd, args].forEach(function (s) { s.addEventListener('change', render); }); render();
+  })();
+
+  /* ================= workbench ================= */
+  var PRESETS = {
+    starter: 'FROM ubi9/ubi\nRUN dnf update -y\nRUN dnf install -y httpd\nCOPY index.html /var/www/html/\nENV ADMIN_PASSWORD=changeme\nEXPOSE 80\nCMD httpd -D FOREGROUND\n',
+    better: 'FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4\nLABEL description="NETW 112 static site"\nRUN microdnf install -y httpd && \\\n    microdnf clean all && \\\n    sed -i \'s/^Listen 80$/Listen 8080/\' /etc/httpd/conf/httpd.conf && \\\n    chgrp -R 0 /var/log/httpd /run/httpd && \\\n    chmod -R g=u /var/log/httpd /run/httpd\nCOPY index.html /var/www/html/\nEXPOSE 8080\nUSER 1001\nCMD ["httpd", "-D", "FOREGROUND"]\n',
+    multi: 'FROM registry.access.redhat.com/ubi9/go-toolset:1.21 AS build\nCOPY main.go go.mod ./\nRUN go build -o /tmp/hello .\n\nFROM registry.access.redhat.com/ubi9/ubi-micro:9.4\nCOPY --from=build /tmp/hello /usr/local/bin/hello\nUSER 1001\nEXPOSE 8080\nENTRYPOINT ["/usr/local/bin/hello"]\n'
+  };
+  var CONTEXT = ['index.html', 'app', 'app/', 'start.sh', 'main.go', 'go.mod', '.', './', 'Containerfile'];
+  var BASES = { 'ubi9/ubi': 219, 'ubi9/ubi-minimal': 102, 'ubi9/ubi-micro': 26, 'ubi9/httpd-24': 385, 'ubi9/go-toolset': 1250, 'ubi9/python-311': 980, 'ubi9/nodejs-20': 640, 'ubi9/ubi-init': 235 };
+  var PKG = { httpd: 38, python3: 28, nodejs: 72, git: 42, gcc: 110, 'mod_ssl': 4, 'procps-ng': 2, vim: 34, 'vim-enhanced': 34, tar: 3, gzip: 1, 'iputils': 2, 'bind-utils': 9, nginx: 22, mariadb: 60 };
+  var KNOWN = ['FROM', 'RUN', 'COPY', 'ADD', 'WORKDIR', 'ENV', 'ARG', 'LABEL', 'USER', 'EXPOSE', 'ENTRYPOINT', 'CMD', 'VOLUME', 'HEALTHCHECK', 'STOPSIGNAL', 'SHELL', 'ONBUILD', 'MAINTAINER'];
+  var edit = document.getElementById('wb-edit'), log = document.getElementById('wb-log'), stats = document.getElementById('wb-stats'), review = document.getElementById('wb-review');
+  var lastKeys = [], ctxVer = 0, lastId = {};
+  var saved = NETW.state.cf;
+  edit.value = typeof saved === 'string' ? saved : PRESETS.starter;
+  edit.addEventListener('input', function () { NETW.state.cf = edit.value; NETW.save(); });
+  document.getElementById('wb-preset').addEventListener('change', function (e) {
+    var v = e.target.value; if (!v) return; edit.value = PRESETS[v]; NETW.state.cf = edit.value; NETW.save();
+    NETW.announce('Example loaded into the editor.'); e.target.value = '';
+  });
+  document.getElementById('wb-clear').addEventListener('click', function () { lastKeys = []; NETW.announce('Build cache cleared. The next build runs every step.'); log.textContent = 'Build cache cleared.'; });
+
+  function parse(text) {
+    var raw = text.split('\n'), out = [], buf = '', start = 0;
+    for (var i = 0; i < raw.length; i++) {
+      var l = raw[i];
+      if (!buf && (/^\s*#/.test(l) || !l.trim())) continue;
+      if (!buf) start = i + 1;
+      if (/\\\s*$/.test(l)) { buf += l.replace(/\\\s*$/, ' '); continue; }
+      buf += l; var t = buf.trim(); buf = '';
+      var m = t.match(/^(\S+)\s*([\s\S]*)$/);
+      out.push({ line: start, ins: m[1].toUpperCase(), rawIns: m[1], arg: m[2].trim(), text: t.replace(/\s+/g, ' ') });
+    }
+    if (buf) { var t2 = buf.trim(), m2 = t2.match(/^(\S+)\s*([\s\S]*)$/); out.push({ line: start, ins: m2[1].toUpperCase(), rawIns: m2[1], arg: m2[2].trim(), text: t2 }); }
+    return out;
+  }
+  function jsonForm(a) { try { var v = JSON.parse(a); return Array.isArray(v) ? v : null; } catch (e) { return null; } }
+  function baseSize(ref) {
+    var r = ref.replace(/^registry\.access\.redhat\.com\//, '').replace(/^registry\.redhat\.io\//, '').split(/[:@]/)[0];
+    return BASES[r] || 150;
+  }
+  function runSize(cmd) {
+    var size = 0.4, notes = [];
+    var mgr = /\b(microdnf|dnf|yum)\b/.exec(cmd);
+    if (mgr) {
+      var inst = cmd.match(/\b(?:microdnf|dnf|yum)\s+(?:-y\s+)?install\s+(?:-y\s+)?([^&;|]+)/);
+      if (inst) inst[1].trim().split(/\s+/).forEach(function (p) { if (p[0] !== '-') size += PKG[p] != null ? PKG[p] : 12; });
+      if (/\b(update|upgrade)\b/.test(cmd)) size += 80;
+      if (!/clean\s+all/.test(cmd) && (inst || /\b(update|upgrade)\b/.test(cmd))) size += mgr[1] === 'microdnf' ? 55 : 115;
+    }
+    if (/\bgo\s+build\b/.test(cmd)) size += 9;
+    if (/\bnpm\s+(install|ci)\b/.test(cmd)) size += 85;
+    if (/\bpip3?\s+install\b/.test(cmd)) size += 40;
+    return size;
+  }
+  function fmtMB(n) { return n >= 1000 ? (n / 1000).toFixed(2) + ' GB' : Math.round(n) + ' MB'; }
+  function rid() { var s = ''; for (var i = 0; i < 12; i++) s += '0123456789abcdef'[Math.floor(Math.random() * 16)]; return s; }
+
+  function lint(steps) {
+    var R = [];
+    function P(line, t) { R.push({ sev: 'problem', line: line, t: t }); }
+    function T(line, t) { R.push({ sev: 'tip', line: line, t: t }); }
+    var stages = [], cur = null;
+    steps.forEach(function (s, i) { if (s.ins === 'FROM') { cur = { from: s, steps: [] }; stages.push(cur); } if (cur) cur.steps.push(s); });
+    if (!stages.length) return R;
+    var final = stages[stages.length - 1], fs = final.steps;
+    stages.forEach(function (st) {
+      var ref = st.from.arg.split(/\s+/)[0];
+      var isQual = /^[^/]+\.[^/]+\//.test(ref);
+      if (!isQual && stages.map(function (x) { return (x.from.arg.split(/\s+AS\s+/i)[1] || '').trim(); }).indexOf(ref) === -1) P(st.from.line, 'FROM uses a short name. Use the fully qualified reference, for example registry.access.redhat.com/' + ref + ', so the build pulls exactly what you intend.');
+      if (isQual && !/[:@]/.test(ref.split('/').pop())) P(st.from.line, 'FROM has no tag, so it means :latest and your build changes whenever the base does. Pin a version tag or digest.');
+      else if (/:latest$/.test(ref)) P(st.from.line, 'FROM pins :latest, which moves. Pin a specific version tag or digest.');
+    });
+    var prevRun = null;
+    steps.forEach(function (s) {
+      if (s.ins === 'RUN') {
+        var c = s.arg;
+        var mgr = /\b(microdnf|dnf|yum)\b/.exec(c);
+        if (mgr && /\binstall\b/.test(c) && !/clean\s+all/.test(c)) P(s.line, mgr[1] + ' install without "' + mgr[1] + ' clean all" in the same RUN leaves the package cache in this layer (about ' + (mgr[1] === 'microdnf' ? 55 : 115) + ' MB). Chain it with &&.');
+        if (mgr && /\b(update|upgrade)\b/.test(c)) T(s.line, 'A full package update adds weight and makes builds less repeatable. Prefer rebuilding on a newer, pinned base image; if you must update, do it in the same RUN as your installs and clean up.');
+        if (prevRun && prevRun.ins === 'RUN' && /\b(microdnf|dnf|yum)\b/.test(prevRun.arg) && mgr) T(s.line, 'Two RUN instructions in a row both use the package manager. Combine them into one RUN with && so there is one layer and one cleanup.');
+        if (/^\s*cd\s|&&\s*cd\s/.test(c)) T(s.line, 'Use WORKDIR instead of cd inside RUN; the directory change doesn\u2019t carry over to later instructions.');
+        if (/\bsudo\b/.test(c)) P(s.line, 'sudo isn\u2019t installed in the base images and isn\u2019t needed: RUN already runs as root until you set USER.');
+      }
+      if (s.ins === 'ADD') {
+        if (/https?:\/\//.test(s.arg)) T(s.line, 'ADD from a URL can\u2019t be cached by content and skips checksum checks. Download in a RUN with curl and verify it, or COPY a file from the context.');
+        else if (!/\.(tar|tgz|tar\.gz|tar\.xz)\b/.test(s.arg)) P(s.line, 'Use COPY for plain files. ADD has extra behaviors (unpacking archives, fetching URLs) that can surprise you.');
+      }
+      if (s.ins === 'ENV' || s.ins === 'ARG') {
+        if (/(PASS(WORD)?|SECRET|TOKEN|API_?KEY|PRIVATE)/i.test(s.arg)) P(s.line, 'This looks like a secret baked into the image. Anyone who can pull the image can read it with podman inspect. Supply secrets at run time instead.');
+      }
+      if (s.ins === 'MAINTAINER') T(s.line, 'MAINTAINER is deprecated. Use LABEL maintainer="\u2026".');
+      prevRun = s;
+    });
+    /* final stage checks */
+    var users = fs.filter(function (s) { return s.ins === 'USER'; });
+    var lastUser = users.length ? users[users.length - 1].arg : null;
+    if (!lastUser || /^(root|0)(:|$)/.test(lastUser)) {
+      var baseNonRoot = /httpd-24|go-toolset|python-3|nodejs-/.test(final.from.arg);
+      if (!baseNonRoot) P(lastUser ? users[users.length - 1].line : final.from.line, 'The final image runs as root. Add USER 1001 after your root-only steps so it runs rootless and on OpenShift.');
+    } else if (!/^\d+(:\d+)?$/.test(lastUser)) T(users[users.length - 1].line, 'Use a numeric UID (for example USER 1001) so platforms can verify the user is not root without looking up names.');
+    var expose = fs.filter(function (s) { return s.ins === 'EXPOSE'; });
+    expose.forEach(function (s) { s.arg.split(/\s+/).forEach(function (p) { if (Number(p.split('/')[0]) < 1024) P(s.line, 'Port ' + p + ' is below 1024. A non-root process can\u2019t bind it. Configure the app for a port such as 8080 and EXPOSE that.'); }); });
+    var installsServer = fs.some(function (s) { return s.ins === 'RUN' && /\b(httpd|nginx)\b/.test(s.arg); });
+    if (installsServer && !expose.length) T(final.from.line, 'This image runs a server but has no EXPOSE. Add EXPOSE 8080 to document the port.');
+    if (installsServer && /\bhttpd\b/.test(fs.map(function (s) { return s.arg; }).join(' ')) && expose.some(function (s) { return /\b8080\b/.test(s.arg); }) && !fs.some(function (s) { return /Listen\s+8080/.test(s.arg); }) && !/httpd-24/.test(final.from.arg)) T(expose[0].line, 'EXPOSE 8080 only documents the port. httpd still listens on 80 until you change its Listen directive.');
+    var runs = fs.filter(function (s) { return s.ins === 'CMD' || s.ins === 'ENTRYPOINT'; });
+    var cmds = fs.filter(function (s) { return s.ins === 'CMD'; }), eps = fs.filter(function (s) { return s.ins === 'ENTRYPOINT'; });
+    if (cmds.length > 1) T(cmds[0].line, 'Only the last CMD takes effect. Remove the earlier ones.');
+    if (eps.length > 1) T(eps[0].line, 'Only the last ENTRYPOINT takes effect.');
+    runs.forEach(function (s) { if (!jsonForm(s.arg)) P(s.line, s.ins + ' uses the shell form, so /bin/sh becomes PID 1 and podman stop won\u2019t reach your app cleanly. Use the exec form: ' + s.ins + ' ["' + s.arg.split(/\s+/).join('", "') + '"].'); });
+    if (eps.length && cmds.length) { var c0 = jsonForm(cmds[cmds.length - 1].arg), e0 = jsonForm(eps[eps.length - 1].arg); if (c0 && e0 && c0[0] === e0[0]) P(cmds[cmds.length - 1].line, 'CMD repeats the ENTRYPOINT program. With an ENTRYPOINT, CMD should hold only default arguments.'); }
+    /* cache ordering */
+    var firstCopy = -1, laterInstall = -1;
+    fs.forEach(function (s, i) { if ((s.ins === 'COPY' || s.ins === 'ADD') && !/--from=/.test(s.arg) && firstCopy === -1) firstCopy = i; if (s.ins === 'RUN' && /\binstall\b/.test(s.arg) && firstCopy > -1 && laterInstall === -1) laterInstall = i; });
+    if (laterInstall > -1) T(fs[laterInstall].line, 'Packages are installed after files are copied in, so every change to your files reinstalls the packages. Move this RUN above the COPY.');
+    /* arbitrary uid */
+    var numericUser = lastUser && /^\d+/.test(lastUser) && lastUser !== '0';
+    var groupFix = fs.some(function (s) { return s.ins === 'RUN' && /chgrp\s+-R\s+0/.test(s.arg) && /chmod\s+-R\s+g=u/.test(s.arg); });
+    if (numericUser && installsServer && !groupFix) T(users[users.length - 1].line, 'On OpenShift this image will run with a random UID in group 0. Give the directories it writes to group 0 with chgrp -R 0 DIR && chmod -R g=u DIR.');
+    if (stages.length > 1) R.push({ sev: 'good', line: final.from.line, t: 'Multi-stage build: only the final stage ends up in the image, so the toolchain from earlier stages adds nothing.' });
+    if (!R.some(function (r) { return r.sev === 'problem'; })) R.push({ sev: 'good', line: null, t: 'No problems found. ' + (R.some(function (r) { return r.sev === 'tip'; }) ? 'The remaining tips are worth considering.' : 'This Containerfile follows every practice in this chapter.') });
+    return R;
+  }
+
+  function line(text, cls) { var s = el('span', cls ? { class: cls } : null, text + '\n'); log.appendChild(s); }
+  function build() {
+    var steps = parse(edit.value), tag = document.getElementById('wb-tag').value.trim() || 'myweb:1.0';
+    var edited = document.getElementById('wb-edited');
+    if (edited.checked) { ctxVer++; edited.checked = false; }
+    log.textContent = ''; stats.textContent = ''; review.textContent = '';
+    if (!steps.length) { line('Error: no instructions found in Containerfile', 'err'); return; }
+    var bad = steps.filter(function (s) { return KNOWN.indexOf(s.ins) === -1; })[0];
+    if (bad) { line('Error: building at STEP "' + bad.text + '": unknown instruction: ' + bad.rawIns.toUpperCase(), 'err'); NETW.announce('Build failed: unknown instruction on line ' + bad.line); return; }
+    var firstReal = steps.filter(function (s) { return s.ins !== 'ARG'; })[0];
+    if (!firstReal || firstReal.ins !== 'FROM') { line('Error: no FROM statement found', 'err'); NETW.announce('Build failed: no FROM'); return; }
+    var stageNames = {}, keys = [], broke = false, user = 'root', total = 0, finalSize = 0, layers = 0, n = steps.length, cached = 0, stageIdx = -1;
+    var stageSizes = [];
+    for (var i = 0; i < steps.length; i++) {
+      var s = steps[i];
+      line('STEP ' + (i + 1) + '/' + n + ': ' + s.text);
+      var key = s.text + (s.ins === 'COPY' || s.ins === 'ADD' ? '#ctx' + (/--from=/.test(s.arg) ? '' : ctxVer) : '');
+      keys.push(key);
+      if (s.ins === 'FROM') {
+        stageIdx++; stageSizes[stageIdx] = 0;
+        var ref = s.arg.split(/\s+/)[0], as = s.arg.split(/\s+AS\s+/i)[1];
+        if (as) stageNames[as.trim()] = stageIdx;
+        if (stageNames[ref] != null && stageNames[ref] !== stageIdx) { stageSizes[stageIdx] = stageSizes[stageNames[ref]]; }
+        else {
+          if (!/^[^/]+\.[^/]+\//.test(ref)) line('Resolving "' + ref + '" using unqualified-search registries (/etc/containers/registries.conf)', 'miss');
+          stageSizes[stageIdx] = baseSize(ref);
+        }
+        user = 'root';
+        if (/httpd-24|go-toolset|python-3|nodejs-/.test(ref)) user = '1001';
+        if (lastKeys[i] !== key) broke = true;
+        continue;
+      }
+      if (s.ins === 'USER') user = s.arg;
+      var hit = !broke && lastKeys[i] === key;
+      if (s.ins === 'RUN' && !hit) {
+        if (user !== 'root' && user !== '0' && /\b(microdnf|dnf|yum)\b/.test(s.arg)) {
+          line('error: This command has to be run with superuser privileges (under the root user on most systems).', 'err');
+          line('Error: building at STEP "' + s.text + '": while running runtime: exit status 1', 'err');
+          lastKeys = keys.slice(0, i);
+          NETW.announce('Build failed at step ' + (i + 1) + '. The package install runs as a non-root user.');
+          review.appendChild(el('li', { class: 'problem' }, 'Line ' + s.line + ': this RUN executes as USER ' + user + ', which cannot install packages. Move USER below the installs.'));
+          return;
+        }
+      }
+      if ((s.ins === 'COPY' || s.ins === 'ADD') && !hit) {
+        var parts = s.arg.split(/\s+/).filter(function (p) { return p.indexOf('--') !== 0; });
+        var from = (s.arg.match(/--from=(\S+)/) || [])[1];
+        if (from && stageNames[from] == null && !/\//.test(from)) { line('Error: building at STEP "' + s.text + '": no stage or image found with that name: ' + from, 'err'); lastKeys = keys.slice(0, i); return; }
+        if (!from) {
+          var srcs = parts.slice(0, -1);
+          var missing = srcs.filter(function (p) { return !/^https?:/.test(p) && CONTEXT.indexOf(p.replace(/^\.\//, '')) === -1 && CONTEXT.indexOf(p) === -1 && !/\*/.test(p); })[0];
+          if (missing) { line('Error: building at STEP "' + s.text + '": checking on sources under "/home/student/myweb": copier: stat: "/' + missing.replace(/^\.\//, '') + '": no such file or directory', 'err'); lastKeys = keys.slice(0, i); NETW.announce('Build failed: ' + missing + ' is not in the build context'); return; }
+        }
+      }
+      var add = 0;
+      if (s.ins === 'RUN') add = runSize(s.arg);
+      if (s.ins === 'COPY' || s.ins === 'ADD') add = /--from=/.test(s.arg) ? 9 : 0.05;
+      if (s.ins === 'RUN' || s.ins === 'COPY' || s.ins === 'ADD') layers++;
+      stageSizes[stageIdx] += add;
+      var id = hit && lastId[key] ? lastId[key] : rid(); lastId[key] = id;
+      if (hit) { cached++; line('--> Using cache ' + id + rid().slice(0, 8), 'cache'); line('--> ' + id, 'cache'); }
+      else { broke = true; if (s.ins === 'RUN') line('  (running ' + (add > 20 ? 'for a while' : 'briefly') + '…)', 'miss'); line('--> ' + id, 'miss'); }
+    }
+    finalSize = stageSizes[stageIdx];
+    var fid = rid();
+    var full = /\//.test(tag) ? tag : 'localhost/' + tag;
+    if (!/:/.test(full.split('/').pop())) full += ':latest';
+    line('COMMIT ' + tag); line('--> ' + fid); line('Successfully tagged ' + full); line(fid + rid() + rid() + rid() + rid().slice(0, 4));
+    lastKeys = keys;
+    function stat(k, v) { var d = el('div'); d.appendChild(el('dt', null, k)); d.appendChild(el('dd', null, v)); stats.appendChild(d); }
+    stat('Estimated size', fmtMB(finalSize)); stat('Steps from cache', cached + ' of ' + (n - steps.filter(function (s) { return s.ins === 'FROM'; }).length)); stat('Runs as', user);
+    var R = lint(steps).sort(function (a, b) { return (a.line == null ? 1e9 : a.line) - (b.line == null ? 1e9 : b.line); });
+    R.forEach(function (r) {
+      var li = el('li', { class: r.sev });
+      li.appendChild(el('span', { class: 'sev' }, r.sev === 'problem' ? 'Problem' : r.sev === 'tip' ? 'Tip' : 'Good'));
+      if (r.line) li.appendChild(el('span', { class: 'ln' }, 'line ' + r.line));
+      li.appendChild(document.createTextNode(r.t)); review.appendChild(li);
+    });
+    var np = R.filter(function (r) { return r.sev === 'problem'; }).length;
+    NETW.announce('Build succeeded. ' + cached + ' steps from cache. Estimated size ' + fmtMB(finalSize) + '. ' + np + ' problem' + (np === 1 ? '' : 's') + ' in review.');
+  }
+  document.getElementById('wb-build').addEventListener('click', build);
+  log.textContent = 'Press Build to run podman build -t ' + document.getElementById('wb-tag').value + ' .';
+
+  NETW.quiz(document.getElementById('quiz'), [
+    { q: 'You change one line of HTML in index.html and rebuild. Your Containerfile installs packages and then copies index.html. Which steps run again?',
+      choices: [{ t: 'Only the COPY step and anything after it', ok: true }, { t: 'Every step, starting from FROM' }, { t: 'Only the package install' }, { t: 'None; Podman detects that HTML doesn\u2019t affect the image' }],
+      why: 'The cache is reused up to the first changed step. Because COPY comes after the install, the install stays cached.' },
+    { q: 'Why doesn\u2019t a separate RUN dnf clean all after RUN dnf install -y httpd reduce the image size?',
+      choices: [{ t: 'The cache files are still stored in the earlier layer', ok: true }, { t: 'dnf clean all doesn\u2019t work in containers' }, { t: 'Podman ignores RUN instructions that delete files' }, { t: 'It does reduce the size; this is a myth' }],
+      why: 'Each layer is kept. Deleting files in a later layer only hides them. Clean up in the same RUN that created the files.' },
+    { q: 'An image has ENTRYPOINT ["curl"] and CMD ["-s", "http://localhost:8080"]. What runs with podman run IMAGE http://example.com?',
+      choices: [{ t: 'curl http://example.com', ok: true }, { t: 'curl -s http://localhost:8080 http://example.com' }, { t: 'http://example.com, which fails' }, { t: 'curl -s http://localhost:8080' }],
+      why: 'Run arguments replace CMD and are appended to the ENTRYPOINT.' },
+    { q: 'What is the main problem with CMD httpd -D FOREGROUND (shell form)?',
+      choices: [{ t: '/bin/sh becomes PID 1 and may not forward SIGTERM, so podman stop can\u2019t shut httpd down cleanly', ok: true }, { t: 'Shell form is not valid Containerfile syntax' }, { t: 'Shell form always runs as root' }, { t: 'Shell form prevents port publishing' }],
+      why: 'The exec form ["httpd", "-D", "FOREGROUND"] runs httpd directly as PID 1, so it receives signals.' },
+    { q: 'A build fails at RUN dnf install -y httpd with "This command has to be run with superuser privileges". What is the likely fix?',
+      choices: [{ t: 'Move USER 1001 below the RUN that installs packages', ok: true }, { t: 'Add sudo to the RUN command' }, { t: 'Use ADD instead of RUN' }, { t: 'Add EXPOSE 80' }],
+      why: 'RUN executes as the current USER. Do root-only work first, then switch users.' },
+    { q: 'OpenShift runs your container as UID 1000680000 in group 0, and the app can\u2019t write to /var/cache/app. Which Containerfile change addresses this?',
+      choices: [{ t: 'RUN chgrp -R 0 /var/cache/app && chmod -R g=u /var/cache/app', ok: true }, { t: 'USER root' }, { t: 'EXPOSE 1000680000' }, { t: 'RUN chmod 700 /var/cache/app' }],
+      why: 'The random UID always belongs to group 0, so giving group 0 the same permissions as the owner lets any assigned UID write there.' },
+    { q: 'Which statement about EXPOSE 8080 is true?',
+      choices: [{ t: 'It documents the port but doesn\u2019t publish it; you still need -p', ok: true }, { t: 'It publishes port 8080 on the host automatically' }, { t: 'It makes the app listen on port 8080' }, { t: 'It opens port 8080 in the host firewall' }],
+      why: 'EXPOSE is metadata. The app\u2019s own configuration decides the port it listens on, and -p publishes it.' },
+    { q: 'What does a multi-stage build achieve?',
+      choices: [{ t: 'The final image contains only what you copy from earlier stages, not their compilers or tools', ok: true }, { t: 'It builds several images in parallel for different CPUs' }, { t: 'It splits one image across several registries' }, { t: 'It runs several containers from one Containerfile' }],
+      why: 'Only the last stage becomes the image. COPY --from pulls specific files, such as a compiled binary, out of earlier stages.' }
+  ]);
+})();
+</script>
+</body>
+</html>
