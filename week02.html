@@ -197,7 +197,8 @@ td code{font-family:var(--mono);font-size:.86rem}
 .missions h4{margin:0 0 var(--s2);font-size:1rem}
 .missions ol{list-style:none;padding:0;margin:0;counter-reset:m;display:grid;grid-template-columns:repeat(auto-fill,minmax(17rem,1fr));gap:0 var(--s5)}
 .missions li{counter-increment:m;border-bottom:1px solid var(--line);padding:var(--s3) 0;font-size:.93rem}
-.missions .mt{display:flex;gap:var(--s2);align-items:baseline}
+.missions .mt{display:flex;gap:var(--s2);align-items:baseline;min-width:0}
+.missions .mt>span:first-child{min-width:0;overflow-wrap:anywhere}
 .missions .mt::before{content:counter(m);font:.8rem var(--mono);color:var(--muted);min-width:1.2em}
 .missions .st{margin-left:auto;font-size:.78rem;font-weight:600;white-space:nowrap;color:var(--muted)}
 .missions li.ok .st{color:var(--ok)}

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Week 8: Container Orchestration with OpenShift and Kubernetes | NETW 112</title>
-<meta name="description" content="NETW 112 Week 8. Why orchestration exists, how Kubernetes reconciles desired state, the core resources, what OpenShift adds, and deploying your first application to a cluster with oc.">
+<title>Week 13: Deploy Managed and Networked Applications | NETW 112</title>
+<meta name="description" content="NETW 112 Week 13. Choose the right workload type, run jobs and cron jobs, understand the pod network, services and cluster DNS, and expose applications with routes and TLS.">
 <style>:root{
   --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#E9EEF1; --ink:#17212B; --muted:#4A5866;
   --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0;
@@ -199,54 +199,52 @@ td code{font-family:var(--mono);font-size:.86rem}
 .missions summary{cursor:pointer;color:var(--accent);font-size:.85rem;min-height:32px;display:flex;align-items:center}
 .missions code{font-family:var(--mono);font-size:.8rem;word-break:break-all}
 
-.ds-controls{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;margin-bottom:var(--s4)}
-.ds-rep{display:flex;align-items:center;gap:var(--s2);font-weight:600;margin-right:var(--s3)}
-.ds-rep output{font:600 1.2rem var(--mono);min-width:1.5em;text-align:center}
-.nodes{display:grid;grid-template-columns:1fr;gap:var(--s3)}
-@media (min-width:40rem){.nodes{grid-template-columns:repeat(3,1fr)}}
-.node{border:2px solid var(--line);border-radius:var(--radius);padding:var(--s3);background:var(--surface);min-height:8.5rem}
-.node h4{margin:0 0 var(--s2);font:600 .9rem var(--mono);display:flex;justify-content:space-between}
-.node h4 span{font:500 .78rem var(--sans);color:var(--ok)}
-.node.down{border-style:dashed;background:var(--bad-bg)}
-.node.down h4 span{color:var(--bad)}
-.pods{display:flex;flex-wrap:wrap;gap:var(--s2)}
-.pod{font:.72rem var(--mono);padding:var(--s1) var(--s2);border-radius:var(--radius-sm);border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent-strong)}
-.pod.new{border-color:var(--signal-line);background:var(--signal-bg);color:var(--signal)}
-.pod.gone{border-color:var(--bad);background:var(--bad-bg);color:var(--bad);text-decoration:line-through}
-.pending{margin-top:var(--s3);font-size:.9rem;color:var(--bad);font-weight:600}
-.ds-log{margin-top:var(--s3);background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s3) var(--s4);font:.8rem/1.5 var(--mono);height:9rem;overflow:auto;white-space:pre-wrap}
-.ds-state{font-weight:600;margin:var(--s3) 0 0}
-.arch{display:grid;grid-template-columns:1fr;gap:var(--s4);max-width:58rem;margin:var(--s4) 0}
-@media (min-width:48rem){.arch{grid-template-columns:1fr 1fr}}
-.arch section{border:1px solid var(--line);border-radius:var(--radius);padding:var(--s3) var(--s4);background:var(--surface)}
-.arch h4{margin:0 0 var(--s2)}
-.arch dl{margin:0}
-.arch dt{font:600 .88rem var(--mono);margin-top:var(--s2)}
-.arch dd{margin:0;font-size:.93rem;color:var(--muted)}
+.wm{display:grid;gap:var(--s3);max-width:52rem}
+.wm-q{border:1px solid var(--line);border-radius:var(--radius);padding:var(--s3) var(--s4);background:var(--surface)}
+.wm-q p{margin:0 0 var(--s2);font-family:var(--serif);font-size:1.02rem;line-height:1.5}
+.wm-q select{min-height:44px;font:.9rem var(--mono);padding:0 var(--s2);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)}
+.wm-q .fb{margin-top:var(--s2);font-size:.92rem}
+.wm-q .fb.right{color:var(--ok)}
+.wm-q .fb.wrong{color:var(--bad)}
+.rp-grid{display:grid;grid-template-columns:1fr;gap:var(--s3);max-width:60rem}
+@media (min-width:48rem){.rp-grid{grid-template-columns:repeat(3,1fr)}}
+.rp-grid fieldset{border:1px solid var(--line);border-radius:var(--radius);padding:var(--s2) var(--s3) var(--s3);margin:0;min-width:0}
+.rp-grid legend{font-weight:600;padding:0 var(--s2);font-size:.92rem}
+.rp-grid label{display:flex;gap:var(--s2);align-items:center;min-height:38px;font-size:.9rem;cursor:pointer}
+.rp-grid input{width:1.1rem;height:1.1rem;flex:none}
+.trace{list-style:none;padding:0;margin:var(--s4) 0 0;max-width:60rem;counter-reset:hop}
+.trace li{counter-increment:hop;display:grid;grid-template-columns:2rem 9rem 1fr;gap:var(--s2);align-items:baseline;padding:var(--s2) 0;border-bottom:1px solid var(--line)}
+.trace li::before{content:counter(hop);font:.8rem var(--mono);color:var(--muted)}
+.trace .hop{font:600 .88rem var(--mono)}
+.trace .ok{color:var(--ok)}
+.trace .bad{color:var(--bad)}
+.trace .skip{color:var(--muted)}
+@media (max-width:40rem){.trace li{grid-template-columns:2rem 1fr}.trace li span:last-child{grid-column:2}}
+.rp-result{margin-top:var(--s3);font-weight:600}
 </style>
 </head>
-<body data-module="w08">
+<body data-module="w13">
 <a href="#main" class="skip-link">Skip to main content</a>
 <div id="sr-status" class="vh" role="status" aria-live="polite"></div>
 
 <header>
   <div class="topbar"><div class="topbar-inner">
     <a class="brand" href="index.html"><span class="brand-code">NETW 112</span> Course home</a>
-    <nav class="weeknav" aria-label="Week navigation"><a href="week07.html">Previous: Week 7</a><a href="week09.html">Next: Week 9, midterm practical</a></nav>
+    <nav class="weeknav" aria-label="Week navigation"><a href="week12.html">Previous: Week 12</a><a href="week14.html">Next: Week 14, storage and reliability</a></nav>
   </div></div>
   <div class="masthead">
-    <p class="weekno">Week 8</p>
-    <h1>From one host to a cluster</h1>
-    <p class="deck">Podman runs containers on one machine. Kubernetes runs them across many, and keeps them running: it replaces failed containers, spreads load, and rolls out new versions. This week you meet the ideas behind it and deploy your first application to OpenShift.</p>
+    <p class="weekno">Week 13</p>
+    <h1>Workloads and networking</h1>
+    <p class="deck">A deployment is the right tool for a web server, but not for a nightly report or a database cluster. This week you match workloads to the right controller, then follow a request all the way from a user's browser, through the router, a route and a service, to a pod.</p>
     <dl class="meta">
-      <div><dt>Red Hat course</dt><dd>DO188, Chapter 8 topics</dd></div>
+      <div><dt>Red Hat course</dt><dd>DO180, Chapter 4 topics</dd></div>
       <div><dt>Session type</dt><dd>Lab, 1 graded</dd></div>
-      <div><dt>Course outcome</dt><dd>Toward Outcome 4</dd></div>
+      <div><dt>Course outcome</dt><dd>Outcome 4</dd></div>
       <div><dt>Time</dt><dd>About 3.5 hours with the lab</dd></div>
     </dl>
     <div class="progress-wrap">
       <div class="progress-label"><span>Your progress this week</span><span id="progress-count">0 of 0 sections</span></div>
-      <div class="bar" id="progress" role="progressbar" aria-label="Week 8 progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+      <div class="bar" id="progress" role="progressbar" aria-label="Week 13 progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
     </div>
   </div>
 </header>
@@ -256,13 +254,12 @@ td code{font-family:var(--mono);font-size:.86rem}
     <details open><summary>In this week</summary>
       <ol>
         <li><a href="#goals">Goals</a></li>
-        <li><a href="#why">What one host can't do</a></li>
-        <li><a href="#how">How Kubernetes works</a></li>
-        <li><a href="#ds">Desired state explorer</a></li>
-        <li><a href="#res">The core resources</a></li>
-        <li><a href="#ocp">What OpenShift adds</a></li>
-        <li><a href="#access">Getting access</a></li>
-        <li><a href="#bridge">From Podman to OpenShift</a></li>
+        <li><a href="#workloads">Choosing a workload type</a></li>
+        <li><a href="#jobs">Jobs and cron jobs</a></li>
+        <li><a href="#podnet">The pod network</a></li>
+        <li><a href="#svc">Services and cluster DNS</a></li>
+        <li><a href="#path">Request path explorer</a></li>
+        <li><a href="#routes">Routes and TLS</a></li>
         <li><a href="#practice">Practice cluster</a></li>
         <li><a href="#beyond">Beyond Red Hat</a></li>
         <li><a href="#check">Knowledge check</a></li>
@@ -277,186 +274,164 @@ td code{font-family:var(--mono);font-size:.86rem}
     <h2><span class="n">1</span>Goals</h2>
     <p class="prose">By the end of this week you should be able to:</p>
     <ul class="objectives">
-      <li>Explain the problems container orchestration solves.</li>
-      <li>Describe the Kubernetes control plane and worker nodes, and the reconcile loop that keeps the cluster at its desired state.</li>
-      <li>Explain what pods, deployments, replica sets, services, routes and projects are for, and how labels connect them.</li>
-      <li>Name what OpenShift adds to Kubernetes.</li>
-      <li>Log in with <code class="inline-code">oc</code>, deploy an image, scale it, and expose it with a service and a route.</li>
-      <li>Recognize why images that require root fail on OpenShift.</li>
+      <li>Choose between deployments, stateful sets, daemon sets, jobs and cron jobs.</li>
+      <li>Create jobs and cron jobs, read cron schedules, and get a job's output.</li>
+      <li>Explain how pods get IP addresses and why clients should use services instead.</li>
+      <li>Connect to a service by its cluster DNS name and read its endpoints.</li>
+      <li>Expose an application with a route, with and without TLS, and choose a TLS termination type.</li>
     </ul>
   </section>
 
-  <section class="unit" id="why" data-unit>
-    <h2><span class="n">2</span>What one host can't do</h2>
+  <section class="unit" id="workloads" data-unit>
+    <h2><span class="n">2</span>Choosing a workload type</h2>
     <div class="prose">
-      <p>Everything so far ran on your workstation. That's fine for development, but production asks questions a single host can't answer:</p>
-      <ul>
-        <li><strong>Failure.</strong> The server dies at 3 a.m. Who restarts the containers, and where?</li>
-        <li><strong>Placement.</strong> Fifty containers, ten servers. Which container goes where, given each one's CPU and memory needs?</li>
-        <li><strong>Scale.</strong> Traffic triples on Monday morning. How do you go from three copies of the web tier to nine, and back?</li>
-        <li><strong>Discovery and load balancing.</strong> Copies come and go with changing IP addresses. How do clients find a working copy?</li>
-        <li><strong>Updates.</strong> How do you replace version 1 with version 2 without downtime, and go back if version 2 is broken?</li>
-      </ul>
-      <p>A <strong>container orchestrator</strong> answers all of them, and <strong>Kubernetes</strong> is the industry standard. Red Hat <strong>OpenShift</strong> is a Kubernetes distribution: everything you learn about Kubernetes applies to it, and it adds tools on top.</p>
-    </div>
-  </section>
-
-  <section class="unit" id="how" data-unit>
-    <h2><span class="n">3</span>How Kubernetes works</h2>
-    <div class="prose">
-      <p>A cluster is a set of machines, called <strong>nodes</strong>, split into two roles:</p>
-    </div>
-    <div class="arch">
-      <section aria-labelledby="cp-h"><h4 id="cp-h">Control plane</h4><dl>
-        <dt>API server</dt><dd>The front door. Every command, from you, the web console or other components, is an API request to it.</dd>
-        <dt>etcd</dt><dd>The database that stores the cluster's desired and current state.</dd>
-        <dt>Scheduler</dt><dd>Chooses a node for each new pod, based on available resources and rules.</dd>
-        <dt>Controller manager</dt><dd>Runs the controllers that compare desired state with reality and fix differences.</dd>
-      </dl></section>
-      <section aria-labelledby="wn-h"><h4 id="wn-h">Worker nodes</h4><dl>
-        <dt>kubelet</dt><dd>The agent on each node. It starts and watches the pods assigned to that node.</dd>
-        <dt>Container runtime</dt><dd>Actually runs the containers. On OpenShift that's CRI-O, a sibling of Podman.</dd>
-        <dt>Network plugin</dt><dd>Gives every pod an IP address and connects pods across nodes (OVN-Kubernetes on OpenShift).</dd>
-      </dl></section>
-    </div>
-    <div class="prose">
-      <h3>Declare, don't command</h3>
-      <p>With Podman you give orders: run this, stop that. With Kubernetes you <strong>declare the state you want</strong>, such as "three copies of this image, each with 256 MiB of memory", and store it in the cluster. Controllers then run a loop forever:</p>
-      <ol>
-        <li>Observe the current state.</li>
-        <li>Compare it with the desired state.</li>
-        <li>Act to close any gap: start a pod, delete one, move one.</li>
-      </ol>
-      <p>That loop, called <strong>reconciliation</strong>, is why deleting a pod managed by a deployment doesn't make it go away: the controller notices one copy is missing and creates a replacement within seconds. To really reduce the count, you change the desired state.</p>
-    </div>
-  </section>
-
-  <section class="unit" id="ds" data-unit>
-    <h2><span class="n">4</span>Desired state explorer</h2>
-    <p class="prose">A deployment named <code class="inline-code">web</code> runs on a three-node cluster. Change the desired replica count, delete pods, take a node down, and watch the controller and scheduler respond.</p>
-    <div class="lab-frame">
-      <div class="ds-controls">
-        <span class="ds-rep">replicas <button type="button" class="btn ghost" id="ds-minus" aria-label="Decrease replicas">−</button><output id="ds-n" aria-live="polite">3</output><button type="button" class="btn ghost" id="ds-plus" aria-label="Increase replicas">+</button></span>
-        <button type="button" class="btn ghost" id="ds-kill">Delete a pod</button>
-        <button type="button" class="btn ghost" id="ds-node" aria-pressed="false">Take worker-1 down</button>
-        <button type="button" class="btn ghost" id="ds-all" aria-pressed="false">Take every node down</button>
-      </div>
-      <div class="nodes" id="ds-nodes"></div>
-      <p class="pending" id="ds-pending" aria-live="polite"></p>
-      <p class="ds-state" id="ds-state" aria-live="polite"></p>
-      <div class="ds-log" id="ds-log" role="log" aria-label="Controller events" tabindex="0"></div>
-    </div>
-  </section>
-
-  <section class="unit" id="res" data-unit>
-    <h2><span class="n">5</span>The core resources</h2>
-    <div class="prose">
-      <p>Everything in Kubernetes is a <strong>resource</strong>: an object with a kind, a name, a specification of what you want, and a status reporting what exists. The ones you'll use constantly:</p>
+      <p>A deployment keeps a set of identical, interchangeable pods running. Not every workload fits that shape, so Kubernetes has other controllers, all built on the same pod template:</p>
     </div>
     <div class="table-wrap"><table>
-      <caption class="vh">Core Kubernetes and OpenShift resources</caption>
-      <thead><tr><th scope="col">Resource</th><th scope="col">What it is</th><th scope="col">Podman analogy</th></tr></thead>
+      <caption class="vh">Workload controllers</caption>
+      <thead><tr><th scope="col">Controller</th><th scope="col">Runs</th><th scope="col">Typical use</th></tr></thead>
       <tbody>
-        <tr><td>Pod</td><td>One or more containers that share a network namespace and storage, scheduled together onto one node. The smallest unit Kubernetes runs.</td><td>A Podman pod</td></tr>
-        <tr><td>Deployment</td><td>Declares an image and a replica count, and manages updates. It creates a ReplicaSet, which creates the pods.</td><td>A <code>podman run</code> command that reruns itself</td></tr>
-        <tr><td>Service</td><td>A stable virtual IP address and DNS name that load-balances across the pods matching a label selector.</td><td>A user-defined network's DNS name, plus load balancing</td></tr>
-        <tr><td>Route (OpenShift)</td><td>Exposes a service outside the cluster with a host name, through the cluster's router.</td><td><code>-p</code> port publishing</td></tr>
-        <tr><td>Project / namespace</td><td>A named space that isolates resources, permissions and quotas. In OpenShift a project is a namespace with extra metadata.</td><td>A Compose project</td></tr>
+        <tr><td>Deployment</td><td>N identical pods; any pod can be replaced by any other</td><td>Web servers, APIs, stateless workers</td></tr>
+        <tr><td>StatefulSet</td><td>N pods with stable names (<code>db-0</code>, <code>db-1</code>) and their own persistent volumes, started in order</td><td>Databases and clustered software that need stable identity</td></tr>
+        <tr><td>DaemonSet</td><td>One pod on every node (or every matching node)</td><td>Log collectors, monitoring agents, node-level networking</td></tr>
+        <tr><td>Job</td><td>Pods that run to completion, retried on failure</td><td>Batch processing, migrations, one-off tasks</td></tr>
+        <tr><td>CronJob</td><td>A Job on a schedule</td><td>Nightly reports, backups, cleanup</td></tr>
       </tbody>
     </table></div>
-    <div class="prose">
-      <h3>Labels hold it together</h3>
-      <p>Resources find each other by <strong>labels</strong>, simple key-value tags such as <code>app=web</code>. A deployment stamps <code>app=web</code> on every pod it creates; the service named <code>web</code> selects pods with <code>app=web</code>. No list of pod names or IP addresses is stored anywhere, which is why pods can come and go freely.</p>
-      <h3>Resources are YAML</h3>
-      <p>Every resource can be written as YAML and applied with <code>oc apply -f</code>. Commands such as <code>oc create deployment</code> are shortcuts that generate this for you. Compare it with the pod YAML Podman generated last week:</p>
+    <div class="lab-frame">
+      <h3>Which workload?</h3>
+      <p class="hint">Pick the best controller for each situation.</p>
+      <div class="wm" id="wm"></div>
     </div>
-    <pre class="cmd"><span class="c">apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: web
-  labels:
-    app: web
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: web
-  template:
-    metadata:
-      labels:
-        app: web
-    spec:
-      containers:
-      - name: httpd
-        image: registry.access.redhat.com/ubi9/httpd-24:1-338
-        ports:
-        - containerPort: 8080</span></pre>
-    <p class="hint">The <code class="inline-code">template</code> section is a pod specification. The deployment uses it as a cookie cutter for every replica.</p>
   </section>
 
-  <section class="unit" id="ocp" data-unit>
-    <h2><span class="n">6</span>What OpenShift adds</h2>
+  <section class="unit" id="jobs" data-unit>
+    <h2><span class="n">3</span>Jobs and cron jobs</h2>
     <div class="prose">
+      <p>A <strong>Job</strong> creates pods with <code>restartPolicy: Never</code> (or <code>OnFailure</code>) and tracks whether they finish successfully. A failed pod is retried, up to <code>backoffLimit</code> times (six by default). Set <code>completions</code> to run the task several times and <code>parallelism</code> to run copies at once.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">oc create job hello --image=registry.access.redhat.com/ubi9/ubi -- date</span>
+<span class="p">$ </span><span class="c">oc get jobs</span>
+<span class="o">NAME    COMPLETIONS   DURATION   AGE
+hello   1/1           4s         10s</span>
+<span class="p">$ </span><span class="c">oc logs job/hello</span></pre>
+    <div class="prose">
+      <p>A <strong>CronJob</strong> creates a Job on a schedule written in classic cron format: five fields for minute, hour, day of month, month and day of week.</p>
+    </div>
+    <div class="table-wrap"><table>
+      <caption class="vh">Cron schedule examples</caption>
+      <thead><tr><th scope="col">Schedule</th><th scope="col">Runs</th></tr></thead>
+      <tbody>
+        <tr><td><code>*/15 * * * *</code></td><td>Every 15 minutes</td></tr>
+        <tr><td><code>0 2 * * *</code></td><td>Every day at 02:00</td></tr>
+        <tr><td><code>30 6 * * 1-5</code></td><td>Weekdays at 06:30</td></tr>
+        <tr><td><code>0 0 1 * *</code></td><td>Midnight on the first of each month</td></tr>
+      </tbody>
+    </table></div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">oc create cronjob report --image=registry.access.redhat.com/ubi9/ubi \
+    --schedule='0 2 * * *' -- sh -c 'echo nightly report'</span>
+<span class="p">$ </span><span class="c">oc create job report-now --from=cronjob/report</span>     <span class="o"># run it right now, to test</span></pre>
+    <p class="hint">Times use the cluster's time zone (usually UTC) unless the CronJob sets <code class="inline-code">timeZone</code>. Quote the schedule so your shell doesn't expand the asterisks.</p>
+  </section>
+
+  <section class="unit" id="podnet" data-unit>
+    <h2><span class="n">4</span>The pod network</h2>
+    <div class="prose">
+      <p>Every pod gets its own IP address from the cluster network, and every pod can reach every other pod's IP directly, across nodes, without port mapping. On OpenShift, OVN-Kubernetes builds this network on top of the nodes' real network.</p>
+      <p>But pod IPs are unreliable as addresses. A pod gets a new IP each time it's replaced, and a deployment may have several pods, so a client would need to know all of them and track changes. That's the job of a service.</p>
+      <p>By default, all pods in a cluster can talk to each other. <strong>NetworkPolicy</strong> objects restrict that, for example "only pods labeled <code>app=web</code> may connect to the database on 3306". Multi-tenant clusters use them to isolate projects.</p>
+    </div>
+  </section>
+
+  <section class="unit" id="svc" data-unit>
+    <h2><span class="n">5</span>Services and cluster DNS</h2>
+    <div class="prose">
+      <p>A <strong>service</strong> gives a set of pods one stable virtual IP and DNS name, and load-balances connections across them. Three settings matter:</p>
       <ul>
-        <li><strong>A web console</strong> with a Developer perspective (topology views, deploying from images or Git) and an Administrator perspective (cluster-wide resources and settings).</li>
-        <li><strong>Routes and a built-in router</strong>, so exposing an application is one command.</li>
-        <li><strong>Builds</strong>, including Source-to-Image (S2I), which turn source code or a Containerfile into an image inside the cluster, and <strong>image streams</strong> that track image versions.</li>
-        <li><strong>An integrated image registry</strong> for images built in the cluster.</li>
-        <li><strong>Projects</strong> with self-service creation, quotas and role-based access.</li>
-        <li><strong>Stricter security defaults.</strong> The <code>restricted-v2</code> security context constraint (SCC) runs every container with a random, high UID in group 0, and drops privileges. This is where your Week 4 habits pay off.</li>
-        <li><strong>Operators and OperatorHub</strong> for installing and running complex software, plus built-in monitoring and logging.</li>
-        <li><strong>The <code>oc</code> client</strong>, which includes every <code>kubectl</code> command plus OpenShift ones such as <code>oc login</code>, <code>oc new-project</code>, <code>oc new-app</code> and <code>oc expose</code>.</li>
+        <li><strong>selector</strong>: which pods, by label (<code>app=web</code>).</li>
+        <li><strong>port</strong>: the port clients connect to on the service.</li>
+        <li><strong>targetPort</strong>: the port the container actually listens on. If this is wrong, the service has endpoints but every connection fails.</li>
       </ul>
+      <p>Kubernetes keeps an <strong>endpoints</strong> list of the IPs of pods that match the selector <em>and are ready</em>. A pod failing its readiness probe is removed from that list until it recovers, which you'll set up next week.</p>
     </div>
-    <div class="callout warn"><span class="label">Why that nginx image crashes</span>
-      <p>Many popular images on Docker Hub assume they run as root: they write to directories owned by root or bind port 80. On OpenShift they run as a random non-root UID and fail with "Permission denied", then sit in <code>CrashLoopBackOff</code>. Use images built for non-root operation, like Red Hat's UBI-based images, or build your own following Week 4's rules.</p></div>
-  </section>
-
-  <section class="unit" id="access" data-unit>
-    <h2><span class="n">7</span>Getting access</h2>
+    <pre class="cmd"><span class="p">$ </span><span class="c">oc expose deployment web --port=8080</span>
+<span class="p">$ </span><span class="c">oc get endpoints web</span>
+<span class="o">NAME   ENDPOINTS                                            AGE
+web    10.128.2.14:8080,10.129.0.31:8080,10.130.1.7:8080    12s</span></pre>
     <div class="prose">
-      <p>This course uses either the free <strong>Red Hat Developer Sandbox</strong> or an instructor-provided cluster.</p>
-      <h3>The Developer Sandbox</h3>
+      <h3>DNS names</h3>
+      <p>The cluster DNS service resolves service names for pods. From a pod in the same project, the short name <code>web</code> works. From another project, use <code>web.otherproject</code>. The fully qualified form is <code>web.otherproject.svc.cluster.local</code>.</p>
+      <h3>Service types</h3>
       <ul>
-        <li>Sign in with a Red Hat account. You get a time-limited, shared cluster with resource quotas.</li>
-        <li>You can't create projects. You're given one ready-made project, named after your user name (such as <code>yourname-dev</code>). Use it for everything.</li>
-        <li>To use <code>oc</code>, open the web console, choose your user name in the top-right corner, then <strong>Copy login command</strong>. It gives you an <code>oc login --token=… --server=…</code> command to paste into your terminal.</li>
+        <li><code>ClusterIP</code> (the default): reachable only inside the cluster.</li>
+        <li><code>NodePort</code>: also opens a port (30000 to 32767) on every node.</li>
+        <li><code>LoadBalancer</code>: asks the cloud provider, or MetalLB on bare metal, for an external load balancer.</li>
       </ul>
-      <h3>Installing oc</h3>
-      <p>Download <code>oc</code> for your operating system from the web console's help menu (the question mark icon), under <strong>Command Line Tools</strong>. The download also includes <code>kubectl</code>. Put both somewhere on your <code>PATH</code> and check:</p>
+      <p>For HTTP and HTTPS applications on OpenShift, keep the service as ClusterIP and add a route.</p>
     </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">oc version --client</span>
-<span class="p">$ </span><span class="c">oc login --token=sha256~… --server=https://api.….openshiftapps.com:6443</span>
-<span class="p">$ </span><span class="c">oc whoami</span>
-<span class="p">$ </span><span class="c">oc project</span></pre>
-    <div class="callout warn"><span class="label">Treat the token like a password</span>
-      <p>Anyone with your login token can act as you on the cluster until it expires. Don't paste it into shared documents, chat or screenshots.</p></div>
   </section>
 
-  <section class="unit" id="bridge" data-unit>
-    <h2><span class="n">8</span>From Podman to OpenShift</h2>
-    <div class="prose">
-      <p>Moving an application you built with Podman onto OpenShift takes three steps:</p>
-      <ol>
-        <li><strong>Make the image reachable.</strong> The cluster can't see <code>localhost/myapp</code> on your workstation. Push the image to a registry the cluster can pull from, such as Quay (Week 3).</li>
-        <li><strong>Make sure it runs as any user.</strong> Non-root, group 0 permissions, a port above 1024 (Week 4).</li>
-        <li><strong>Describe it to the cluster</strong>, either with commands or with YAML:</li>
-      </ol>
+  <section class="unit" id="path" data-unit>
+    <h2><span class="n">6</span>Request path explorer</h2>
+    <p class="prose">A user opens your application's address. Change the settings and follow the request hop by hop, to see where each kind of misconfiguration breaks it.</p>
+    <div class="lab-frame">
+      <div class="rp-grid">
+        <fieldset><legend>Client uses</legend>
+          <label><input type="radio" name="rp-scheme" value="http" checked> http://</label>
+          <label><input type="radio" name="rp-scheme" value="https"> https://</label>
+        </fieldset>
+        <fieldset><legend>Route TLS</legend>
+          <label><input type="radio" name="rp-tls" value="none" checked> none</label>
+          <label><input type="radio" name="rp-tls" value="edge"> edge, redirect http</label>
+          <label><input type="radio" name="rp-tls" value="passthrough"> passthrough</label>
+        </fieldset>
+        <fieldset><legend>Service selector</legend>
+          <label><input type="radio" name="rp-sel" value="ok" checked> app=web (matches pods)</label>
+          <label><input type="radio" name="rp-sel" value="bad"> app=wbe (typo)</label>
+        </fieldset>
+        <fieldset><legend>Service targetPort</legend>
+          <label><input type="radio" name="rp-tp" value="8080" checked> 8080 (app listens here)</label>
+          <label><input type="radio" name="rp-tp" value="80"> 80</label>
+        </fieldset>
+        <fieldset><legend>Ready pods</legend>
+          <label><input type="radio" name="rp-ready" value="3" checked> 3 of 3</label>
+          <label><input type="radio" name="rp-ready" value="1"> 1 of 3</label>
+          <label><input type="radio" name="rp-ready" value="0"> 0 of 3</label>
+        </fieldset>
+      </div>
+      <ol class="trace" id="rp-trace" aria-live="polite"></ol>
+      <p class="rp-result" id="rp-result"></p>
     </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman push quay.io/student/myapp:1.0</span>
-<span class="p">$ </span><span class="c">oc create deployment myapp --image=quay.io/student/myapp:1.0 --port=8080</span>
-<span class="p">$ </span><span class="c">oc expose deployment myapp</span>
-<span class="p">$ </span><span class="c">oc expose service myapp</span>
-<span class="p">$ </span><span class="c">oc get route myapp</span></pre>
+  </section>
+
+  <section class="unit" id="routes" data-unit>
+    <h2><span class="n">7</span>Routes and TLS</h2>
     <div class="prose">
-      <p>Or start from <code>podman kube generate</code> YAML and apply it with <code>oc apply -f pod.yaml</code>. A bare pod is a good test, but for anything real, wrap it in a deployment so the cluster keeps it running.</p>
-      <p>If your Quay repository is private, the cluster needs credentials too: a pull secret, which you'll create in Week 11.</p>
+      <p>A route tells the cluster's router (an HAProxy-based ingress controller in <code>openshift-ingress</code>) to accept requests for a host name and pass them to a service. <code>oc expose service web</code> makes an unencrypted route with a generated host name such as <code>web-myproject.apps.cluster.example.com</code>; <code>--hostname</code> sets your own, provided DNS points it at the router.</p>
+      <h3>TLS termination types</h3>
     </div>
+    <div class="table-wrap"><table>
+      <caption class="vh">Route TLS termination types</caption>
+      <thead><tr><th scope="col">Type</th><th scope="col">Where TLS ends</th><th scope="col">When to use</th></tr></thead>
+      <tbody>
+        <tr><td><code>edge</code></td><td>At the router. Traffic from router to pod is plain HTTP inside the cluster.</td><td>The common case. The router uses the cluster's wildcard certificate unless you supply one.</td></tr>
+        <tr><td><code>passthrough</code></td><td>At the pod. The router forwards encrypted traffic without reading it.</td><td>The app must handle TLS itself, or clients use mutual TLS.</td></tr>
+        <tr><td><code>reencrypt</code></td><td>At the router, then a new TLS connection to the pod.</td><td>Encryption required end to end, but the router still needs to see the request.</td></tr>
+      </tbody>
+    </table></div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">oc create route edge web --service=web</span>
+<span class="p">$ </span><span class="c">oc create route edge web2 --service=web --hostname=shop.example.com --cert=tls.crt --key=tls.key</span>
+<span class="p">$ </span><span class="c">oc patch route/web -p '{"spec":{"tls":{"insecureEdgeTerminationPolicy":"Redirect"}}}'</span></pre>
+    <div class="prose">
+      <p>The <code>insecureEdgeTerminationPolicy</code> decides what happens to plain HTTP on a TLS route: <code>Redirect</code> sends the browser to HTTPS, <code>Allow</code> serves both, <code>None</code> refuses. OpenShift also accepts standard Kubernetes <strong>Ingress</strong> objects and turns them into routes, so manifests written for other clusters still work.</p>
+    </div>
+    <div class="callout exam"><span class="label">Exam habit</span>
+      <p>When a route returns "Application is not available", check in order: does the route point at the right service, does the service have endpoints, are the pods ready, and is targetPort correct? <code>oc describe route</code>, <code>oc get endpoints</code> and <code>oc get pods</code> answer all four.</p></div>
   </section>
 
   <section class="unit" id="practice" data-unit>
-    <h2><span class="n">9</span>Practice cluster</h2>
-    <p class="prose">This terminal talks to a simulated OpenShift 4.14 cluster with three worker nodes. Both <code class="inline-code">oc</code> and <code class="inline-code">kubectl</code> work. Pods take a few seconds to start, so run <code class="inline-code">oc get pods</code> more than once. Type <code class="inline-code">help</code> for the command list.</p>
+    <h2><span class="n">8</span>Practice cluster</h2>
+    <p class="prose">You're <code class="inline-code">developer</code> in <code class="inline-code">netw112-net</code>, where a deployment named <code class="inline-code">web</code> runs three pods but has no service or route yet. Cron schedules run every 30 seconds here to save you waiting. Type <code class="inline-code">help</code> for the command list.</p>
     <div class="sim">
       <div class="term" aria-label="OpenShift practice terminal">
         <div class="term-bar"><span>student@workstation ~ (oc 4.14)</span><span><button type="button" id="t-clear">Clear</button> <button type="button" id="t-reset">Reset cluster</button></span></div>
@@ -472,73 +447,63 @@ spec:
   </section>
 
   <section class="unit beyond" id="beyond" data-unit>
-    <h2><span class="n">10</span>Beyond Red Hat</h2>
-    <p class="eco-tag">Upstream Kubernetes and other platforms</p>
-    <div class="table-wrap"><table>
-      <caption class="vh">OpenShift features and their upstream Kubernetes equivalents</caption>
-      <thead><tr><th scope="col">OpenShift</th><th scope="col">Upstream Kubernetes</th><th scope="col">Notes</th></tr></thead>
-      <tbody>
-        <tr><td><code>oc</code></td><td><code>kubectl</code></td><td>Same commands for standard resources. <code>kubectl</code> has no <code>login</code>; clusters hand you a kubeconfig file instead.</td></tr>
-        <tr><td>Project</td><td>Namespace</td><td><code>kubectl create namespace</code>, then pass <code>-n</code> or set it as the context default.</td></tr>
-        <tr><td>Route</td><td>Ingress, or the newer Gateway API</td><td>Both need an ingress or gateway controller installed, such as NGINX Ingress, Traefik or a cloud load balancer. OpenShift supports Ingress objects too.</td></tr>
-        <tr><td>Security context constraints</td><td>Pod Security Admission</td><td>Upstream clusters often let containers run as root by default, which is why Docker Hub images that fail on OpenShift may work elsewhere.</td></tr>
-        <tr><td><code>oc new-app</code>, S2I builds</td><td>No built-in equivalent</td><td>Upstream teams build images in CI pipelines and deploy with YAML, Helm charts or Kustomize.</td></tr>
-        <tr><td>Web console</td><td>Kubernetes Dashboard (optional add-on)</td><td>Cloud services provide their own consoles.</td></tr>
-        <tr><td>DeploymentConfig (older)</td><td>Deployment</td><td>DeploymentConfig is an OpenShift-only resource, deprecated since 4.14. Use Deployment everywhere.</td></tr>
-      </tbody>
-    </table></div>
+    <h2><span class="n">9</span>Beyond Red Hat</h2>
+    <p class="eco-tag">Networking on other platforms</p>
     <div class="prose">
-      <h3>Practicing on plain Kubernetes</h3>
-      <p><strong>kind</strong> (Kubernetes in Docker, which also works with Podman) and <strong>minikube</strong> run a small cluster on your workstation; <strong>k3s</strong> runs a lightweight one on modest hardware such as a Raspberry Pi. Managed services, Amazon EKS, Azure AKS and Google GKE, provide clusters in the cloud. Every skill from Weeks 10 to 15, apart from routes and <code>oc</code>-only commands, works the same on all of them.</p>
+      <ul>
+        <li><strong>Ingress and the Gateway API.</strong> Upstream clusters expose HTTP apps with Ingress objects handled by a controller you install (NGINX Ingress, Traefik, HAProxy, or a cloud load balancer). The newer <strong>Gateway API</strong> is its successor, with richer routing and clearer separation between platform and app teams; OpenShift supports it too.</li>
+        <li><strong>LoadBalancer services in the cloud</strong> automatically create an AWS, Azure or Google load balancer with a public address. That's often how traffic reaches the ingress controller itself.</li>
+        <li><strong>Certificates.</strong> <strong>cert-manager</strong> requests and renews TLS certificates automatically, often from Let's Encrypt. <strong>ExternalDNS</strong> creates DNS records for your hosts.</li>
+        <li><strong>Network plugins.</strong> Calico and Cilium are popular upstream CNI plugins; both enforce NetworkPolicy, and Cilium uses eBPF for fast networking and visibility.</li>
+        <li><strong>Service meshes</strong> such as Istio (OpenShift Service Mesh is based on it) and Linkerd add mutual TLS between services, retries and detailed traffic metrics without changing application code.</li>
+        <li><strong>Jobs and CronJobs</strong> are identical everywhere. Larger batch and data pipelines often use Argo Workflows or Apache Airflow on top of them.</li>
+      </ul>
     </div>
   </section>
 
   <section class="unit" id="check" data-unit>
-    <h2><span class="n">11</span>Knowledge check</h2>
+    <h2><span class="n">10</span>Knowledge check</h2>
     <p class="hint">Eight questions, answer order shuffled each time. Practice only; not graded.</p>
     <div id="quiz"></div>
   </section>
 
   <section class="unit" id="lab" data-unit>
-    <h2><span class="n">12</span>Lab bridge</h2>
+    <h2><span class="n">11</span>Lab bridge</h2>
     <div class="bridge">
-      <h3>Your graded lab: DO188 Chapter 8 in the OLE</h3>
-      <p class="prose">Complete the Chapter 8 guided exercises, then the end-of-chapter lab. It is graded on completion and correctness.</p>
+      <h3>Your graded lab: DO180 Chapter 4 in the OLE</h3>
+      <p class="prose">Complete the Chapter 4 guided exercises, then the end-of-chapter lab. It is graded on completion and correctness.</p>
       <p class="prose"><strong>Before you start</strong></p>
       <ul class="checklist">
         <li><input type="checkbox" id="b1" data-check="b1"><label for="b1">I finished every mission in the practice cluster.</label></li>
-        <li><input type="checkbox" id="b2" data-check="b2"><label for="b2">I can log in to my real cluster with <code class="inline-code">oc</code> and see my project.</label></li>
-        <li><input type="checkbox" id="b3" data-check="b3"><label for="b3">I can explain why deleting a pod doesn't reduce the number of pods.</label></li>
+        <li><input type="checkbox" id="b2" data-check="b2"><label for="b2">I can explain port versus targetPort, and check endpoints.</label></li>
+        <li><input type="checkbox" id="b3" data-check="b3"><label for="b3">I can create an edge route and test it with HTTPS.</label></li>
         <li><input type="checkbox" id="b4" data-check="b4"><label for="b4">I read the lab instructions all the way through before typing anything.</label></li>
       </ul>
       <p class="prose"><strong>Watch for these during the lab</strong></p>
       <ul>
-        <li>Check which project you're in with <code class="inline-code">oc project</code> before creating anything. Resources created in the wrong project don't count.</li>
-        <li>Pods take time to start. Wait for <code class="inline-code">Running</code> and <code class="inline-code">1/1</code> before testing.</li>
-        <li>If a pod won't start, use the troubleshooting order from Week 6, translated: <code class="inline-code">oc get pods</code>, <code class="inline-code">oc logs</code>, <code class="inline-code">oc describe pod</code>.</li>
-        <li>Test the route from outside with <code class="inline-code">curl</code> or a browser, exactly as a user would.</li>
+        <li>Use the exact service, route and host names the lab asks for; the grader looks them up by name.</li>
+        <li>Test from inside the cluster (<code class="inline-code">oc exec … -- curl SERVICE:PORT</code>) and from outside (the route) to locate any break.</li>
+        <li>For jobs, confirm completion with <code class="inline-code">oc get jobs</code> and read the output with <code class="inline-code">oc logs job/NAME</code>.</li>
       </ul>
     </div>
   </section>
 
   <section class="unit" id="cheat" data-unit>
-    <h2><span class="n">13</span>Cheat sheet</h2>
+    <h2><span class="n">12</span>Cheat sheet</h2>
     <div class="table-wrap"><table>
-      <caption class="vh">First OpenShift commands</caption>
+      <caption class="vh">Workload and networking commands</caption>
       <thead><tr><th scope="col">Task</th><th scope="col">Command</th></tr></thead>
       <tbody>
-        <tr><td>Log in</td><td><code>oc login --token=TOKEN --server=URL</code> or <code>oc login -u USER URL</code></td></tr>
-        <tr><td>Who and where am I?</td><td><code>oc whoami</code>, <code>oc project</code>, <code>oc projects</code></td></tr>
-        <tr><td>Create or switch project</td><td><code>oc new-project NAME</code>, <code>oc project NAME</code></td></tr>
-        <tr><td>Deploy an image</td><td><code>oc create deployment NAME --image=IMAGE --replicas=N</code></td></tr>
-        <tr><td>Deploy with service in one step</td><td><code>oc new-app IMAGE --name NAME</code></td></tr>
-        <tr><td>List things</td><td><code>oc get pods</code>, <code>oc get deploy,svc,route</code>, <code>oc get all</code></td></tr>
-        <tr><td>Details and events</td><td><code>oc describe pod NAME</code>, <code>oc get events</code></td></tr>
-        <tr><td>Logs</td><td><code>oc logs POD</code>, <code>oc logs deployment/NAME</code>, <code>oc logs POD --previous</code></td></tr>
-        <tr><td>Scale</td><td><code>oc scale deployment/NAME --replicas=N</code></td></tr>
-        <tr><td>Create a service</td><td><code>oc expose deployment NAME --port=8080</code></td></tr>
-        <tr><td>Create a route</td><td><code>oc expose service NAME</code>, then <code>oc get route</code></td></tr>
-        <tr><td>Remove an app</td><td><code>oc delete all -l app=NAME</code></td></tr>
+        <tr><td>Run a one-off job</td><td><code>oc create job NAME --image=IMG -- CMD</code></td></tr>
+        <tr><td>Scheduled job</td><td><code>oc create cronjob NAME --image=IMG --schedule='0 2 * * *' -- CMD</code></td></tr>
+        <tr><td>Run a cron job now</td><td><code>oc create job NAME --from=cronjob/CRON</code></td></tr>
+        <tr><td>Job status and output</td><td><code>oc get jobs</code>, <code>oc logs job/NAME</code></td></tr>
+        <tr><td>Create a service</td><td><code>oc expose deployment NAME --port=PORT [--target-port=PORT]</code></td></tr>
+        <tr><td>Which pods back it?</td><td><code>oc get endpoints NAME</code>, <code>oc describe service NAME</code></td></tr>
+        <tr><td>Reach it from a pod</td><td><code>oc exec deployment/X -- curl -s NAME.PROJECT.svc.cluster.local:PORT</code></td></tr>
+        <tr><td>Plain route</td><td><code>oc expose service NAME [--hostname=HOST]</code></td></tr>
+        <tr><td>TLS route</td><td><code>oc create route edge NAME --service=SVC</code> (also <code>passthrough</code>, <code>reencrypt</code>)</td></tr>
+        <tr><td>Test HTTPS</td><td><code>curl -k https://HOST</code> (only <code>-k</code> for self-signed lab certificates)</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -547,7 +512,7 @@ spec:
 
 <footer class="site-foot"><div class="inner">
   <p>Built for <span class="program">NETW 112 Containers &amp; Orchestration</span> · Brookdale Community College · <span class="year">2026</span></p>
-  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat, Red Hat Enterprise Linux and OpenShift are trademarks of Red Hat, Inc. The practice cluster is a teaching simulation; host names and output are illustrative.</p>
+  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat and OpenShift are trademarks of Red Hat, Inc. The practice cluster is a teaching simulation; cron schedules are accelerated.</p>
 </div></footer>
 
 <script>/* NETW 112 shared module runtime. Inlined into every page. */
@@ -560,100 +525,93 @@ var NETWKUBE=function(){"use strict";var e=NETW.el;function r(e){for(var r=[],t=
   NETW.init();
   var el = NETW.el;
 
-  /* ---------- desired state explorer ---------- */
+  /* workload matcher */
   (function () {
-    var NODES = ['worker-0', 'worker-1', 'worker-2'], down = {}, desired = 3, pods = [], seq = 0, busy = false;
-    var nodesEl = document.getElementById('ds-nodes'), logEl = document.getElementById('ds-log'), nEl = document.getElementById('ds-n'), pend = document.getElementById('ds-pending'), stEl = document.getElementById('ds-state');
-    var fast = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    function id() { var c = 'bcdfghjklmnpqrstvwxz2456789', s = ''; for (var i = 0; i < 5; i++) s += c[Math.floor(Math.random() * c.length)]; return 'web-7d9f-' + s; }
-    function log(t) { var d = new Date(); logEl.appendChild(document.createTextNode(d.toTimeString().slice(0, 8) + '  ' + t + '\n')); logEl.scrollTop = logEl.scrollHeight; }
-    function alive() { return pods.filter(function (p) { return !p.gone; }); }
-    function upNodes() { return NODES.filter(function (n) { return !down[n]; }); }
-    function draw() {
-      nodesEl.textContent = '';
-      NODES.forEach(function (n) {
-        var box = el('div', { class: 'node' + (down[n] ? ' down' : '') }), h = el('h4'); h.appendChild(document.createTextNode(n)); h.appendChild(el('span', null, down[n] ? 'NotReady' : 'Ready')); box.appendChild(h);
-        var list = el('div', { class: 'pods' });
-        pods.filter(function (p) { return p.node === n; }).forEach(function (p) { list.appendChild(el('span', { class: 'pod' + (p.gone ? ' gone' : p.fresh ? ' new' : '') }, p.name + (p.fresh && !p.gone ? ' (starting)' : ''))); });
-        if (!list.childNodes.length) list.appendChild(el('span', { class: 'hint' }, 'no pods'));
-        box.appendChild(list); nodesEl.appendChild(box);
-      });
-      var a = alive().length, waiting = alive().filter(function (p) { return !p.node; }).length;
-      pend.textContent = waiting ? waiting + ' pod' + (waiting > 1 ? 's' : '') + ' Pending: no Ready node to schedule on.' : '';
-      stEl.textContent = 'Desired: ' + desired + '. Current: ' + alive().filter(function (p) { return p.node; }).length + ' running' + (a === desired && !waiting ? ', matches desired state.' : ', reconciling\u2026');
-      nEl.textContent = String(desired);
-    }
-    function later(fn, ms) { if (fast) fn(); else setTimeout(fn, ms); }
-    function leastLoaded() { var up = upNodes(); if (!up.length) return null; up.sort(function (x, y) { return alive().filter(function (p) { return p.node === x; }).length - alive().filter(function (p) { return p.node === y; }).length; }); return up[0]; }
-    function reconcile() {
-      if (busy) return; busy = true;
-      later(function () {
-        pods = pods.filter(function (p) { return !p.gone; });
-        alive().forEach(function (p) { p.fresh = false; if (!p.node) { var nn = leastLoaded(); if (nn) { p.node = nn; p.fresh = true; log('scheduler: assigned ' + p.name + ' to ' + nn); } } });
-        var cur = alive();
-        if (cur.length < desired) { for (var i = cur.length; i < desired; i++) { var nn = leastLoaded(), p = { name: id(), node: nn, fresh: true }; pods.push(p); log('replicaset-controller: created pod ' + p.name + (nn ? '; scheduler: assigned to ' + nn : '; Pending, no Ready node')); } }
-        else if (cur.length > desired) { cur.slice(desired).forEach(function (p) { p.gone = true; log('replicaset-controller: deleted pod ' + p.name + ' (scaling down)'); }); }
-        busy = false; draw();
-        later(function () { pods = pods.filter(function (p) { return !p.gone; }); alive().forEach(function (p) { p.fresh = false; }); draw(); }, 900);
-      }, 700);
-    }
-    document.getElementById('ds-plus').addEventListener('click', function () { if (desired < 9) { desired++; log('you: set spec.replicas to ' + desired); draw(); reconcile(); } });
-    document.getElementById('ds-minus').addEventListener('click', function () { if (desired > 0) { desired--; log('you: set spec.replicas to ' + desired); draw(); reconcile(); } });
-    document.getElementById('ds-kill').addEventListener('click', function () { var a = alive().filter(function (p) { return p.node; }); if (!a.length) return; var v = a[Math.floor(Math.random() * a.length)]; v.gone = true; log('you: oc delete pod ' + v.name); draw(); reconcile(); });
-    function setNode(n, isDown) { down[n] = isDown; if (isDown) { alive().filter(function (p) { return p.node === n; }).forEach(function (p) { p.gone = true; log('node-controller: ' + n + ' NotReady; evicting ' + p.name); }); } else log('node-controller: ' + n + ' Ready again'); }
-    var nb = document.getElementById('ds-node'), ab = document.getElementById('ds-all');
-    nb.addEventListener('click', function () { var d = nb.getAttribute('aria-pressed') !== 'true'; nb.setAttribute('aria-pressed', String(d)); nb.textContent = d ? 'Bring worker-1 back' : 'Take worker-1 down'; setNode('worker-1', d); draw(); reconcile(); });
-    ab.addEventListener('click', function () { var d = ab.getAttribute('aria-pressed') !== 'true'; ab.setAttribute('aria-pressed', String(d)); ab.textContent = d ? 'Bring every node back' : 'Take every node down'; NODES.forEach(function (n) { if (n !== 'worker-1' || d || nb.getAttribute('aria-pressed') !== 'true') setNode(n, d); }); if (!d) { nb.setAttribute('aria-pressed', 'false'); nb.textContent = 'Take worker-1 down'; } draw(); reconcile(); });
-    for (var i = 0; i < 3; i++) pods.push({ name: id(), node: NODES[i] });
-    log('deployment web: 3 of 3 replicas available'); draw();
+    var OPTS = ['Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob'];
+    var Q = [
+      ['A REST API that should run five interchangeable copies behind a service.', 'Deployment', 'Identical, replaceable pods are exactly what deployments manage.'],
+      ['A three-member PostgreSQL cluster where each member needs its own disk and a stable name.', 'StatefulSet', 'Stable identities (db-0, db-1, db-2) and per-pod volumes come from a StatefulSet.'],
+      ['A log shipper that must run on every node to read that node\u2019s log files.', 'DaemonSet', 'A DaemonSet places one pod per node, including nodes added later.'],
+      ['A database schema migration that must run once before a release.', 'Job', 'A Job runs to completion and retries on failure, then stops.'],
+      ['Delete expired user sessions every night at 03:00.', 'CronJob', 'A CronJob creates a Job on a schedule.'],
+      ['Resize a folder of 10,000 uploaded images, ten at a time, then finish.', 'Job', 'A Job with completions and parallelism processes a batch and ends.']
+    ];
+    var box = document.getElementById('wm'), st = NETW.state.wm = NETW.state.wm || {};
+    Q.forEach(function (q, i) {
+      var d = el('div', { class: 'wm-q' }), id = 'wm' + i;
+      d.appendChild(el('p', null, (i + 1) + '. ' + q[0]));
+      var lab = el('label', { for: id, class: 'vh' }, 'Workload for situation ' + (i + 1)); d.appendChild(lab);
+      var s = el('select', { id: id }); s.appendChild(el('option', { value: '' }, 'Choose\u2026')); OPTS.forEach(function (o) { s.appendChild(el('option', { value: o }, o)); });
+      var fb = el('div', { class: 'fb', 'aria-live': 'polite' });
+      function show() { if (!s.value) { fb.textContent = ''; return; } var ok = s.value === q[1]; fb.className = 'fb ' + (ok ? 'right' : 'wrong'); fb.textContent = (ok ? 'Correct. ' : 'Not the best fit. ') + (ok ? q[2] : 'Think about whether the pods are identical, need identity, run per node, or finish.'); }
+      s.addEventListener('change', function () { st[i] = s.value; NETW.save(); show(); });
+      if (st[i]) { s.value = st[i]; show(); }
+      d.appendChild(s); d.appendChild(fb); box.appendChild(d);
+    });
   })();
 
-  /* ---------- practice cluster ---------- */
+  /* request path */
+  (function () {
+    var tr = document.getElementById('rp-trace'), res = document.getElementById('rp-result');
+    function v(n) { return document.querySelector('input[name="' + n + '"]:checked').value; }
+    function hop(name, cls, text) { var li = el('li'); li.appendChild(el('span', { class: 'hop' }, name)); li.appendChild(el('span', { class: cls }, text)); tr.appendChild(li); }
+    function render() {
+      var sc = v('rp-scheme'), tls = v('rp-tls'), sel = v('rp-sel'), tp = v('rp-tp'), ready = Number(v('rp-ready'));
+      tr.textContent = ''; var fail = null;
+      hop('DNS', 'ok', 'web-shop.apps.cluster.example.com resolves to the router\u2019s address (wildcard *.apps record).');
+      if (sc === 'http' && tls === 'edge') { hop('router', 'ok', 'Plain HTTP on an edge route with Redirect: the router answers 302 and the browser retries with https://.'); sc = 'https'; }
+      if (sc === 'https' && tls === 'none') { hop('router', 'bad', 'No route for this host accepts HTTPS. The router returns its "Application is not available" page.'); fail = 'Add TLS to the route (oc create route edge) or use http://.'; }
+      else if (sc === 'http' && tls === 'passthrough') { hop('router', 'bad', 'Passthrough routes only accept TLS. Plain HTTP doesn\u2019t match the route.'); fail = 'Use https://, or switch to an edge route if the app doesn\u2019t do TLS itself.'; }
+      else hop('router', 'ok', tls === 'edge' ? 'TLS ends here, with the cluster certificate; the request continues as HTTP.' : tls === 'passthrough' ? 'The encrypted stream is forwarded unread to the service.' : 'The route matches the host and forwards to the service.');
+      if (!fail) {
+        hop('route', 'ok', 'spec.to: service web.');
+        var eps = sel === 'ok' ? ready : 0;
+        if (sel === 'bad') { hop('service', 'bad', 'Selector app=wbe matches no pods, so the service has no endpoints.'); fail = 'Fix the selector so it matches the pod labels; oc get endpoints shows <none> until you do.'; }
+        else if (!eps) { hop('service', 'bad', 'Selector matches 3 pods, but none is ready, so endpoints are empty. The router returns "Application is not available".'); fail = 'Find out why the pods aren\u2019t ready: oc get pods, oc describe pod, readiness probe events.'; }
+        else hop('service', 'ok', 'Endpoints: ' + eps + ' ready pod' + (eps > 1 ? 's' : '') + '. One is chosen for this connection' + (eps < 3 ? '; unready pods get no traffic' : '') + '.');
+      }
+      if (!fail) {
+        if (tp === '80') { hop('pod', 'bad', 'The connection goes to port 80 on the pod, where nothing listens. Connection refused; the router returns 503.'); fail = 'Set targetPort to 8080, the port the container listens on.'; }
+        else if (tls === 'passthrough') { hop('pod', 'bad', 'The pod receives raw TLS on 8080, but httpd serves plain HTTP there. The handshake fails.'); fail = 'For passthrough, point the service at the app\u2019s TLS port (8443) with its own certificate, or use edge termination.'; }
+        else hop('pod', 'ok', 'httpd on port 8080 answers 200 OK, back through the router to the browser.');
+      }
+      res.textContent = fail ? 'Broken. ' + fail : 'The request succeeds.';
+      res.style.color = fail ? 'var(--bad)' : 'var(--ok)';
+    }
+    document.querySelectorAll('.rp-grid input').forEach(function (i) { i.addEventListener('change', render); }); render();
+  })();
+
+  /* practice cluster */
   NETWKUBE.create({
-    intro: 'Practice cluster terminal. You are not logged in yet. Type help for the command list, or start with mission 1.',
-    doneMsg: 'You\u2019re ready for the Chapter 8 lab.',
+    intro: 'Practice cluster. Log in as developer to reach netw112-net. Type help for the command list, or start with mission 1.',
+    doneMsg: 'You\u2019re ready for the DO180 Chapter 4 lab.',
+    projects: { 'netw112-net': { deploys: { web: { image: 'registry.access.redhat.com/ubi9/httpd-24:1-338', replicas: 3 } } } },
     missions: function (api) {
-      function p() { var K = api.K(); return K.cur && K.projects[K.cur]; }
-      function web() { var x = p(); return x && x.deploys.web; }
+      var K = function () { return api.K(); };
+      function p() { return K().projects['netw112-net']; }
       return [
-        { t: 'Log in to the cluster as developer', h: 'oc login -u developer https://api.cluster.example.com:6443', ok: function () { return api.K().logged; } },
-        { t: 'Create a project for this exercise', h: 'oc new-project netw112-week8', ok: function () { return !!p(); } },
-        { t: 'Create a deployment named web from the httpd image with 2 replicas', h: 'oc create deployment web --image=registry.access.redhat.com/ubi9/httpd-24 --replicas=2', ok: function () { var d = web(); return d && /httpd-24/.test(d.image); } },
-        { t: 'List the pods until they show Running', h: 'oc get pods     (run it again after a few seconds)', ok: function () { return api.K().flags.sawRunning; } },
-        { t: 'Delete one pod, then list pods to see its replacement', h: 'oc get pods\noc delete pod web-XXXXXXXXXX-XXXXX     (copy a real name)\noc get pods', ok: function (l, ok) { return api.K().flags.replaced && ok && /get (pods|po)\b/.test(l); } },
-        { t: 'Scale web to 4 replicas', h: 'oc scale deployment/web --replicas=4', ok: function () { var d = web(); return d && d.replicas === 4; } },
-        { t: 'Give web a service on port 8080', h: 'oc expose deployment web --port=8080', ok: function () { var x = p(); return x && !!x.svcs.web; } },
-        { t: 'Expose the service with a route, then curl the route\u2019s host name', h: 'oc expose service web\noc get route web\ncurl http://web-PROJECT.apps.cluster.example.com', ok: function () { return api.K().flags.curled; } },
-        { t: 'Deploy docker.io/library/nginx as nginx, watch it fail, and read its logs to find out why', h: 'oc create deployment nginx --image=docker.io/library/nginx\noc get pods\noc logs nginx-XXXXXXXXXX-XXXXX', ok: function () { return api.K().flags.crashLogs; } }
+        { t: 'Log in as developer', h: 'oc login -u developer https://api.cluster.example.com:6443', ok: function () { return K().logged && K().user === 'developer'; } },
+        { t: 'Create a service named web for the deployment, on port 8080', h: 'oc expose deployment web --port=8080', ok: function () { return !!(p() && p().svcs.web); } },
+        { t: 'List the pod IPs behind the service', h: 'oc get endpoints web', ok: function () { return !!K().flags.endpoints; } },
+        { t: 'From inside a web pod, reach the service by its fully qualified DNS name', h: 'oc exec deployment/web -- curl -s web.netw112-net.svc.cluster.local:8080', ok: function () { return !!K().flags.svcDns; } },
+        { t: 'Expose the service with an edge TLS route named web', h: 'oc create route edge web --service=web\noc get route web', ok: function () { var r = p() && p().routes.web; return !!(r && r.tls === 'edge'); } },
+        { t: 'Fetch the app over HTTPS through the route', h: 'curl http://web-netw112-net.apps.cluster.example.com      (see the redirect)\ncurl -k https://web-netw112-net.apps.cluster.example.com', ok: function () { return !!K().flags.curledTls; } },
+        { t: 'Run a job named hello that prints the date', h: 'oc create job hello --image=registry.access.redhat.com/ubi9/ubi -- date\noc get jobs', ok: function () { return !!(p() && p().jobs.hello); } },
+        { t: 'Read the job\u2019s output once it completes', h: 'oc get jobs\noc logs job/hello', ok: function (l, ok) { return ok && /logs (job\/hello|hello-)/.test(l); } },
+        { t: 'Create a cron job named report, then trigger a run immediately', h: 'oc create cronjob report --image=registry.access.redhat.com/ubi9/ubi --schedule=\'*/5 * * * *\' -- echo "daily report"\noc create job report-now --from=cronjob/report\noc get jobs', ok: function () { return !!K().flags['jobFrom:report']; } }
       ];
     }
   });
 
   NETW.quiz(document.getElementById('quiz'), [
-    { q: 'A deployment wants 3 replicas. You delete one of its pods. What happens?',
-      choices: [{ t: 'The ReplicaSet controller creates a new pod to get back to 3', ok: true }, { t: 'The deployment now runs 2 pods' }, { t: 'The deployment is deleted' }, { t: 'All 3 pods restart' }],
-      why: 'Controllers reconcile current state to desired state. To run fewer pods, change spec.replicas with oc scale.' },
-    { q: 'Which control-plane component chooses the node a new pod runs on?',
-      choices: [{ t: 'The scheduler', ok: true }, { t: 'etcd' }, { t: 'The kubelet' }, { t: 'The router' }],
-      why: 'The scheduler assigns pods to nodes; the kubelet on that node then starts them.' },
-    { q: 'How does a service know which pods to send traffic to?',
-      choices: [{ t: 'Its label selector matches the pods\u2019 labels', ok: true }, { t: 'It stores a list of pod IP addresses you provide' }, { t: 'It uses the pods\u2019 names' }, { t: 'It sends traffic to every pod in the project' }],
-      why: 'Labels such as app=web connect services to pods dynamically, so pods can be replaced freely.' },
-    { q: 'What does an OpenShift route do?',
-      choices: [{ t: 'Exposes a service outside the cluster under a host name', ok: true }, { t: 'Schedules pods onto nodes' }, { t: 'Copies images between registries' }, { t: 'Connects two projects' }],
-      why: 'Routes are handled by the cluster\u2019s router. On upstream Kubernetes the closest equivalent is an Ingress.' },
-    { q: 'A Docker Hub image works with podman run on your laptop but is in CrashLoopBackOff on OpenShift with "Permission denied" in its logs. Why?',
-      choices: [{ t: 'OpenShift runs it as a random non-root UID, and the image expects root', ok: true }, { t: 'OpenShift can\u2019t pull from Docker Hub' }, { t: 'The pod has too much memory' }, { t: 'Routes block port 80' }],
-      why: 'The restricted SCC enforces non-root UIDs. Use images designed for it, or rebuild with group 0 permissions and a high port.' },
-    { q: 'On the Developer Sandbox, oc new-project fails. What should you do?',
-      choices: [{ t: 'Use the project the Sandbox already created for you', ok: true }, { t: 'Use kubectl create namespace instead' }, { t: 'Log in as kubeadmin' }, { t: 'Create a new Red Hat account' }],
-      why: 'The Sandbox provides a ready-made project, such as yourname-dev, and doesn\u2019t allow creating more.' },
-    { q: 'Which tool includes every kubectl command plus OpenShift-specific ones?',
-      choices: [{ t: 'oc', ok: true }, { t: 'podman' }, { t: 'skopeo' }, { t: 'podman-compose' }],
-      why: 'oc is a superset of kubectl, adding commands such as login, new-project, new-app and expose for routes.' },
-    { q: 'Your image is localhost/myapp:1.0 on your workstation. Why can\u2019t a deployment on the cluster use that name?',
-      choices: [{ t: 'The cluster\u2019s nodes can\u2019t see your local image storage; push it to a registry first', ok: true }, { t: 'Deployments only accept images from Docker Hub' }, { t: 'localhost images are always root' }, { t: 'The tag 1.0 is invalid on OpenShift' }],
-      why: 'Nodes pull images from registries. Push to Quay or another registry the cluster can reach, then reference that name.' }
+    { q: 'Which controller gives each pod a stable name and its own persistent volume?', choices: [{ t: 'StatefulSet', ok: true }, { t: 'Deployment' }, { t: 'DaemonSet' }, { t: 'Job' }], why: 'StatefulSets name pods db-0, db-1 and give each a volume from volumeClaimTemplates.' },
+    { q: 'What does the cron schedule 0 2 * * * mean?', choices: [{ t: 'Every day at 02:00', ok: true }, { t: 'Every two minutes' }, { t: 'Every two hours' }, { t: 'At 00:02 every day' }], why: 'The fields are minute, hour, day of month, month, day of week.' },
+    { q: 'A service exists and its selector matches three running pods, but oc get endpoints shows <none>. Most likely?', choices: [{ t: 'None of the pods is ready', ok: true }, { t: 'The route has no TLS' }, { t: 'Services never list endpoints' }, { t: 'The project has too many pods' }], why: 'Only ready pods become endpoints. Check readiness probes and pod status.' },
+    { q: 'A pod in project shop needs to call the service api in project billing. Which name works?', choices: [{ t: 'api.billing (or api.billing.svc.cluster.local)', ok: true }, { t: 'api' }, { t: 'billing.api' }, { t: 'The api pod\u2019s IP address, always' }], why: 'Short names work within a project; add the project name to cross projects.' },
+    { q: 'The service has endpoints, but every request through the route fails with connection refused. Likely cause?', choices: [{ t: 'targetPort doesn\u2019t match the port the container listens on', ok: true }, { t: 'The selector is wrong' }, { t: 'No pods are ready' }, { t: 'DNS is down' }], why: 'With endpoints present, selection worked; the traffic is going to the wrong port.' },
+    { q: 'With edge TLS termination, where is the TLS connection decrypted?', choices: [{ t: 'At the router', ok: true }, { t: 'At the pod' }, { t: 'At the service' }, { t: 'Nowhere; edge means no TLS' }], why: 'Edge ends TLS at the router; passthrough ends at the pod; reencrypt uses two TLS connections.' },
+    { q: 'You need to test a cron job without waiting for its schedule. What do you run?', choices: [{ t: 'oc create job NAME --from=cronjob/CRON', ok: true }, { t: 'oc rollout restart cronjob/CRON' }, { t: 'oc scale cronjob/CRON --replicas=1' }, { t: 'oc expose cronjob/CRON' }], why: 'Creating a job from the cron job\u2019s template runs it immediately.' },
+    { q: 'Why shouldn\u2019t clients connect directly to pod IP addresses?', choices: [{ t: 'Pod IPs change whenever pods are replaced, and there may be many pods', ok: true }, { t: 'Pod IPs are not routable inside the cluster' }, { t: 'Pods don\u2019t have IP addresses' }, { t: 'It\u2019s slower than DNS' }], why: 'Services provide a stable address and load balancing over the changing set of pods.' }
   ]);
 })();
 </script>
