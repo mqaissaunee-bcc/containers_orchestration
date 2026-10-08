@@ -713,6 +713,64 @@ var NETW = (function () {
   return { init: init, quiz: quiz, el: el, shuffle: shuffle, announce: announce, read: read, write: write, state: state, save: save };
 })();
 
+/* NETW 112 shared YAML subset parser. */
+var NETWYAML = (function () {
+  'use strict';
+  function parseYaml(text) {
+    var lines = [];
+    text.split('\n').forEach(function (raw, i) {
+      var l = raw.replace(/\t/g, '  '), q = null, cut = l.length;
+      for (var k = 0; k < l.length; k++) { var ch = l[k]; if (q) { if (ch === q) q = null; } else if (ch === '"' || ch === "'") q = ch; else if (ch === '#' && (k === 0 || /\s/.test(l[k - 1]))) { cut = k; break; } }
+      l = l.slice(0, cut).replace(/\s+$/, '');
+      if (!l.trim() || /^---\s*$/.test(l.trim())) return;
+      lines.push({ ind: l.match(/^ */)[0].length, text: l.trim(), n: i + 1 });
+    });
+    var pos = 0;
+    function fail(n, m) { var e = new Error('line ' + n + ': ' + m); e.yaml = true; throw e; }
+    function scalar(v) {
+      v = v.trim();
+      if (/^"[\s\S]*"$/.test(v) || /^'[\s\S]*'$/.test(v)) return v.slice(1, -1);
+      if (/^\[[\s\S]*\]$/.test(v)) return v.slice(1, -1).split(',').map(function (x) { return scalar(x); }).filter(function (x) { return x !== ''; });
+      if (/^\{\s*\}$/.test(v)) return {};
+      if (v === 'true') return true; if (v === 'false') return false; if (v === 'null' || v === '~') return null;
+      return v;
+    }
+    function isItem(t) { return t === '-' || t.indexOf('- ') === 0; }
+    function block(ind) {
+      if (pos >= lines.length) return null;
+      if (isItem(lines[pos].text)) {
+        var arr = [];
+        while (pos < lines.length && lines[pos].ind === ind && isItem(lines[pos].text)) {
+          var L = lines[pos], rest = L.text.replace(/^-\s*/, ''); pos++;
+          if (!rest) arr.push(pos < lines.length && lines[pos].ind > ind ? block(lines[pos].ind) : null);
+          else if (/^[A-Za-z0-9_.\-"']+\s*:(\s|$)/.test(rest)) { lines.splice(pos, 0, { ind: ind + 2, text: rest, n: L.n }); arr.push(block(ind + 2)); }
+          else arr.push(scalar(rest));
+        }
+        if (pos < lines.length && lines[pos].ind > ind) fail(lines[pos].n, 'unexpected indentation');
+        return arr;
+      }
+      var obj = {};
+      while (pos < lines.length && lines[pos].ind === ind && !isItem(lines[pos].text)) {
+        var M = lines[pos], m = M.text.match(/^("[^"]*"|'[^']*'|[^:]+?)\s*:(?:\s+(.*))?$/);
+        if (!m) fail(M.n, 'expected "key: value" but found "' + M.text + '"');
+        var key = scalar(m[1]); pos++;
+        if (key in obj) fail(M.n, 'duplicate key "' + key + '"');
+        if (m[2] !== undefined && m[2] !== '') { if (/^[|>]/.test(m[2])) { var buf = []; while (pos < lines.length && lines[pos].ind > ind) { buf.push(lines[pos].text); pos++; } obj[key] = buf.join(m[2][0] === '|' ? '\n' : ' '); } else obj[key] = scalar(m[2]); }
+        else if (pos < lines.length && lines[pos].ind > ind) obj[key] = block(lines[pos].ind);
+        else if (pos < lines.length && lines[pos].ind === ind && isItem(lines[pos].text)) obj[key] = block(ind);
+        else obj[key] = null;
+      }
+      if (pos < lines.length && lines[pos].ind > ind) fail(lines[pos].n, 'unexpected indentation (check that keys at the same level line up)');
+      return obj;
+    }
+    if (!lines.length) return {};
+    if (lines[0].ind !== 0) fail(lines[0].n, 'the first key must start at the left margin');
+    var out = block(0);
+    if (pos < lines.length) fail(lines[pos].n, 'unexpected indentation (check that keys at the same level line up)');
+    return out;
+  }
+  return parseYaml;
+})();
 /* NETW 112 shared Podman practice-terminal engine. Inlined into pages that use it. */
 var NETWSIM = (function () {
   'use strict';
@@ -732,7 +790,7 @@ var NETWSIM = (function () {
     return out;
   }
   /* parse "podman run" options; returns {opts, image, cmd, err, parts[]} */
-  var VALUE_FLAGS = { '--name': 'name', '-p': 'publish', '--publish': 'publish', '-e': 'env', '--env': 'env', '--network': 'network', '--net': 'network', '-m': 'memory', '--memory': 'memory', '-v': 'volume', '--volume': 'volume', '-u': 'user', '--user': 'user' };
+  var VALUE_FLAGS = { '--name': 'name', '-p': 'publish', '--publish': 'publish', '-e': 'env', '--env': 'env', '--network': 'network', '--net': 'network', '-m': 'memory', '--memory': 'memory', '-v': 'volume', '--volume': 'volume', '-u': 'user', '--user': 'user', '--pod': 'pod', '--network-alias': 'alias', '--restart': 'ignore', '--hostname': 'ignore', '--health-cmd': 'ignore', '--health-interval': 'ignore', '--entrypoint': 'entrypoint', '-w': 'ignore', '--workdir': 'ignore' };
   var BOOL_FLAGS = { '-d': 'detach', '--detach': 'detach', '-i': 'interactive', '--interactive': 'interactive', '-t': 'tty', '--tty': 'tty', '--rm': 'rm', '-it': 'it', '-ti': 'it', '-dit': 'dit', '-itd': 'dit' };
   function parseRun(args) {
     var o = { publish: [], env: [], volume: [] }, parts = [], i = 0;
@@ -757,6 +815,7 @@ var NETWSIM = (function () {
     return { opts: o, image: args[i], cmd: args.slice(i + 1), parts: parts };
   }
 
+  var parseYaml = NETWYAML;
   function create(cfg) {
     var D = {
       u94: 'sha256:4c1b2e7f90aa6d3150c7e2bb8f61d0a9e3f4275c6be019a87d2c4f5e6a7b8c91',
@@ -768,13 +827,14 @@ var NETWSIM = (function () {
     var IMG = {
       'registry.access.redhat.com/ubi9/ubi': { size: '219 MB', created: '2 weeks ago', cmd: '/bin/bash', kind: 'shell', tags: { 'latest': D.u94, '9.4': D.u94, '9.3': D.u93 }, version: '9.4' },
       'registry.access.redhat.com/ubi9/ubi-minimal': { size: '102 MB', created: '2 weeks ago', cmd: '/bin/bash', kind: 'shell', tags: { 'latest': D.m94, '9.4': D.m94 }, version: '9.4' },
+      'registry.redhat.io/rhel9/mariadb-105': { size: '576 MB', created: '2 weeks ago', cmd: 'run-mysqld', kind: 'mariadb', tags: { 'latest': 'sha256:d2c8f1a7e4b05c93a6f2e1d0b9c8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0', '1': 'sha256:d2c8f1a7e4b05c93a6f2e1d0b9c8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0' }, version: '1', auth: 'registry.redhat.io' },
       'registry.access.redhat.com/ubi9/httpd-24': { size: '385 MB', created: '3 weeks ago', cmd: '/usr/bin/run-httpd', kind: 'httpd', tags: { 'latest': D.h1, '1': D.h1, '1-338': D.h1, '1-322': D.h0 }, version: '1' }
     };
     var ADJ = ['brave', 'quirky', 'eager', 'gifted', 'nifty', 'serene', 'jolly', 'wizardly', 'zealous', 'clever'];
     var NOUN = ['turing', 'hopper', 'lovelace', 'torvalds', 'ritchie', 'hamilton', 'knuth', 'liskov', 'shannon', 'babbage'];
     var S;
     function fresh() {
-      return { images: {}, ctrs: [], nets: { podman: { id: '2f259bab93aa', dns: false, subnet: '10.88.0' } }, ipn: 2, files: Object.assign({ 'index.html': '<h1>Hello from NETW 112</h1>' }, cfg.files || {}), remote: {}, auth: {}, archives: {}, flags: {}, vols: {}, dirs: JSON.parse(JSON.stringify(cfg.hostDirs || {})), last: null };
+      return { images: {}, ctrs: [], nets: { podman: { id: '2f259bab93aa', dns: false, subnet: '10.88.0' } }, ipn: 2, files: Object.assign({ 'index.html': '<h1>Hello from NETW 112</h1>' }, cfg.files || {}), remote: {}, auth: {}, archives: {}, flags: {}, pods: {}, compose: {}, vols: {}, dirs: JSON.parse(JSON.stringify(cfg.hostDirs || {})), last: null };
     }
     S = fresh();
     var logEl = document.getElementById('t-log'), inEl = document.getElementById('t-in');
@@ -822,6 +882,8 @@ var NETWSIM = (function () {
       if (first === 'quay.io') {
         if (!S.auth['quay.io']) return { err: 'Error: initializing source docker://' + full + ':' + tag + ': reading manifest ' + tag + ' in ' + full + ': unauthorized: access to the requested resource is not authorized   [simulator] your quay.io repositories are private; run podman login quay.io' };
         if (!S.remote[full]) return { err: 'Error: initializing source docker://' + full + ':' + tag + ': reading manifest ' + tag + ' in ' + full + ': manifest unknown' };
+      } else if (IMG[full] && IMG[full].auth && !S.auth[IMG[full].auth]) {
+        return { err: 'Error: initializing source docker://' + full + ':' + tag + ': unable to retrieve auth token: invalid username/password: unauthorized: Please login to the Red Hat Registry using your Customer Portal credentials.   [simulator] run podman login registry.redhat.io first' };
       } else if (!IMG[full]) {
         if (first === 'registry.access.redhat.com') return { err: 'Error: initializing source docker://' + full + ':' + tag + ': reading manifest ' + tag + ' in ' + full + ': name unknown: Repo not found' };
         if (first === 'registry.redhat.io') return { err: 'Error: initializing source docker://' + full + ':' + tag + ': unable to retrieve auth token: invalid username/password: unauthorized. [simulator] registry.redhat.io needs podman login, and this simulator only offers the ubi9 images.' };
@@ -862,7 +924,9 @@ var NETWSIM = (function () {
       return null;
     }
     function noSuch(ref) { return err('Error: no container with name or ID "' + ref + '" found: no such container'); }
-    function longRunning(c) { return c.kind === 'httpd' && !c.cmd.length || (c.cmd[0] === 'sleep' && (c.cmd[1] === 'infinity' || Number(c.cmd[1]) > 30)) || (c.kind === 'shell' && !c.cmd.length && c.interactive && c.detach); }
+    function longRunning(c) { return (c.kind === 'httpd' || c.kind === 'mariadb') && !c.cmd.length || (c.cmd[0] === 'sleep' && (c.cmd[1] === 'infinity' || Number(c.cmd[1]) > 30)) || (c.kind === 'shell' && !c.cmd.length && c.interactive && c.detach); }
+    function findOnNet(h, net) { return S.ctrs.filter(function (c) { return c.network === net && (c.name === h || (c.aliases || []).indexOf(h) > -1); })[0] || null; }
+    function envMap(c) { var o = {}; c.env.forEach(function (e) { var i = e.indexOf('='); o[e.slice(0, i)] = e.slice(i + 1); }); return o; }
     function ip(c) { return S.nets[c.network].subnet + '.' + c.ipn; }
     function stamp() { var d = new Date(); return d.toUTCString().replace(' GMT', ''); }
     function startLogs(c) {
@@ -873,7 +937,7 @@ var NETWSIM = (function () {
         '[' + stamp() + '] [core:notice] [pid 1:tid 1] AH00094: Command line: \'httpd -D FOREGROUND\'');
     }
     function portInUse(h, except) {
-      return S.ctrs.some(function (c) { return c !== except && c.state === 'running' && c.ports.some(function (p) { return p.h === h; }); });
+      return S.ctrs.some(function (c) { return c !== except && !(c.pod && except.pod && c.pod === except.pod) && c.state === 'running' && c.ports.some(function (p) { return p.h === h; }); });
     }
     function exitCtr(c, code) {
       c.state = 'exited'; c.code = code; c.finished = Date.now();
@@ -882,7 +946,7 @@ var NETWSIM = (function () {
   
     /* ---------- filesystem model ---------- */
     function dirName(p) { return p.replace(/^\/home\/student\//, '').replace(/^~\//, '').replace(/^\.\//, '').replace(/\/$/, ''); }
-    function procUid(c) { if (c.user != null) return Number(String(c.user).split(':')[0]) || 0; return c.kind === 'httpd' ? 1001 : 0; }
+    function procUid(c) { if (c.user != null) return Number(String(c.user).split(':')[0]) || 0; return c.kind === 'httpd' ? 1001 : c.kind === 'mariadb' ? 27 : 0; }
     function hostUid(u) { return u === 0 ? 'student' : String(100000 + u - 1); }
     function normPath(p) { var out = []; p.split('/').forEach(function (x) { if (!x || x === '.') return; if (x === '..') out.pop(); else out.push(x); }); return '/' + out.join('/'); }
     function resolveFs(c, path) {
@@ -925,10 +989,10 @@ var NETWSIM = (function () {
         S.ctrs.forEach(function (c) { if (c.state === 'running' && c.ports.some(function (p) { return p.h === port && p.c === 8080; })) target = c; });
         if (!target) return { err: 'curl: (7) Failed to connect to ' + host + ' port ' + port + ' after 0 ms: Couldn\'t connect to server' };
       } else {
-        if (host === 'localhost' || host === '127.0.0.1') target = from;
+        if (host === 'localhost' || host === '127.0.0.1') target = from.kind === 'httpd' || !from.pod ? from : (S.ctrs.filter(function (c) { return c.pod === from.pod && c.kind === 'httpd' && c.state === 'running'; })[0] || from);
         else {
-          var t = find(host);
-          if (!t || t.network !== from.network || !S.nets[from.network].dns) return { err: 'curl: (6) Could not resolve host: ' + host + (S.nets[from.network].dns ? '' : '   [simulator] the default "podman" network has no DNS; use a network you created') };
+          var t = findOnNet(host, from.network);
+          if (!t || !S.nets[from.network].dns) return { err: 'curl: (6) Could not resolve host: ' + host + (S.nets[from.network].dns ? '' : '   [simulator] the default "podman" network has no DNS; use a network you created') };
           target = t;
         }
         if (target.state !== 'running' || target.kind !== 'httpd' || port !== 8080) return { err: 'curl: (7) Failed to connect to ' + host + ' port ' + port + ' after 0 ms: Couldn\'t connect to server' };
@@ -955,8 +1019,8 @@ var NETWSIM = (function () {
       switch (cmd) {
         case 'echo': return { out: [a.join(' ')] };
         case 'hostname': return { out: [c.id.slice(0, 12)] };
-        case 'whoami': return { out: [isHttpd ? 'default' : 'root'] };
-        case 'id': return { out: [isHttpd ? 'uid=1001(default) gid=0(root) groups=0(root)' : 'uid=0(root) gid=0(root) groups=0(root)'] };
+        case 'whoami': return { out: [isHttpd ? 'default' : c.kind === 'mariadb' ? 'mysql' : 'root'] };
+        case 'id': if (c.kind === 'mariadb') return { out: ['uid=27(mysql) gid=27(mysql) groups=27(mysql),0(root)'] }; return { out: [isHttpd ? 'uid=1001(default) gid=0(root) groups=0(root)' : 'uid=0(root) gid=0(root) groups=0(root)'] };
         case 'uname': return { out: [a[0] === '-r' ? '5.14.0-427.13.1.el9_4.x86_64' : 'Linux'], note: a[0] === '-r' ? 'That is the host\u2019s kernel version. Containers share the host kernel.' : null };
         case 'date': return { out: [new Date().toUTCString().replace('GMT', 'UTC')] };
         case 'env': case 'printenv':
@@ -974,10 +1038,38 @@ var NETWSIM = (function () {
           if (mnt.m || mnt.path === '/var/www/html') { var ld = listDir(c, lp); if (ld.err) return { err: 'ls: cannot open directory \'' + lp + '\': ' + ld.err, code: 2 }; return { out: ld.names.length ? [ld.names.join('  ')] : [] }; }
           return { err: 'ls: cannot access \'' + a[0] + '\': No such file or directory', code: 2 };
         case 'ps':
-          if (isHttpd && !c.cmd.length) return { out: ['    PID TTY          TIME CMD', '      1 ?        00:00:00 httpd', '     28 ?        00:00:00 httpd', '     29 ?        00:00:00 httpd', '     52 ?        00:00:00 ps'] };
+          if (c.kind === 'mariadb' && !c.cmd.length) return { out: ['    PID TTY          TIME CMD', '      1 ?        00:00:01 mysqld', '     64 ?        00:00:00 ps'] };
+        if (isHttpd && !c.cmd.length) return { out: ['    PID TTY          TIME CMD', '      1 ?        00:00:00 httpd', '     28 ?        00:00:00 httpd', '     29 ?        00:00:00 httpd', '     52 ?        00:00:00 ps'] };
           return { out: ['    PID TTY          TIME CMD', '      1 ?        00:00:00 ' + (c.cmd[0] || 'bash'), '      7 ?        00:00:00 ps'] };
         case 'curl': var target = a.filter(function (x) { return x[0] !== '-'; })[0]; return target ? curl(c, target) : { err: 'curl: try \'curl --help\' for more information', code: 2 };
         case 'sleep': return { out: [] };
+        case 'getent':
+          if (a[0] !== 'hosts' || !a[1]) return { err: 'getent: [simulator] use getent hosts NAME', code: 1 };
+          if (a[1] === 'localhost') return { out: ['::1             localhost'] };
+          var gt = S.nets[c.network].dns ? findOnNet(a[1], c.network) : null;
+          return gt ? { out: [pad(ip(gt), 16) + a[1]] } : { out: [], code: 2, note: S.nets[c.network].dns ? 'No container named or aliased ' + a[1] + ' on network ' + c.network + '. (getent prints nothing and exits 2.)' : 'The default podman network has no DNS, so names never resolve here.' };
+        case 'mysql':
+          if (c.kind !== 'mariadb') return { err: 'Error: crun: executable file `mysql` not found in $PATH: No such file or directory: OCI runtime attempted to invoke a command that was not found', code: 127 };
+          var mh = null, mu = null, mpw = null, mq = null, mdb = null;
+          for (var mi2 = 0; mi2 < a.length; mi2++) {
+            var x = a[mi2];
+            if (x === '-h') mh = a[++mi2]; else if (x.indexOf('-h') === 0) mh = x.slice(2);
+            else if (x === '-u') mu = a[++mi2]; else if (x.indexOf('-u') === 0) mu = x.slice(2);
+            else if (x.indexOf('-p') === 0) mpw = x.slice(2);
+            else if (x === '-e') mq = a[++mi2];
+            else if (x === '-P') mi2++;
+            else if (x[0] !== '-') mdb = x;
+          }
+          var mt = !mh || mh === 'localhost' || mh === '127.0.0.1' ? c : (S.nets[c.network].dns ? findOnNet(mh, c.network) : null);
+          if (!mt) return { err: 'ERROR 2005 (HY000): Unknown MySQL server host \'' + mh + '\' (-2)', code: 1 };
+          if (mt.kind !== 'mariadb' || mt.state !== 'running') return { err: 'ERROR 2002 (HY000): Can\'t connect to MySQL server on \'' + mh + '\' (115)', code: 1 };
+          var me = envMap(mt), okUser = (mu === me.MYSQL_USER && mpw === me.MYSQL_PASSWORD) || (mu === 'root' && me.MYSQL_ROOT_PASSWORD && mpw === me.MYSQL_ROOT_PASSWORD) || (!mh && mu === 'root' && !mpw);
+          if (!okUser) return { err: 'ERROR 1045 (28000): Access denied for user \'' + (mu || 'mysql') + '\'@\'' + (mh ? ip(c) : 'localhost') + '\' (using password: ' + (mpw ? 'YES' : 'NO') + ')', code: 1 };
+          if (mdb && mdb !== me.MYSQL_DATABASE && mu !== 'root') return { err: 'ERROR 1044 (42000): Access denied for user \'' + mu + '\'@\'%\' to database \'' + mdb + '\'', code: 1 };
+          if (!mq) return { out: [], note: 'An interactive MariaDB prompt would open here. Add -e "QUERY" to run one statement.' };
+          if (/^\s*select\s+1\s*;?\s*$/i.test(mq)) return { out: ['+---+', '| 1 |', '+---+', '| 1 |', '+---+'] };
+          if (/show\s+databases/i.test(mq)) return { out: ['+--------------------+', '| Database           |', '+--------------------+', '| information_schema |', '| ' + pad(me.MYSQL_DATABASE || 'mysql', 18) + ' |', '+--------------------+'] };
+          return { out: ['Query OK'] };
         case 'touch': if (!a[0]) return { err: 'touch: missing file operand', code: 1 }; var te = writeFile(c, a[0], '', false); return te ? { err: 'touch: cannot touch \'' + a[0] + '\': ' + te, code: 1 } : { out: [] };
         case 'mkdir': return { out: [] };
         case 'bash': case 'sh':
@@ -998,7 +1090,7 @@ var NETWSIM = (function () {
     }
   
     /* podman subcommands */
-    var P = {};
+    var P = {}, cfgAlias = null;
     P.run = function (args, create) {
       var r = parseRun(args); if (r.err) return err(r.err);
       var o = r.opts;
@@ -1006,7 +1098,13 @@ var NETWSIM = (function () {
       if (lk.length) { var li = S.images[lk[0]]; img = { key: lk[0], meta: li.meta }; }
       else { img = resolveImage(r.image); if (img.err) return err(img.err); }
       if (o.name && find(o.name)) return err('Error: creating container storage: the container name "' + o.name + '" is already in use by ' + find(o.name).id + '. You have to remove that container to be able to reuse that name: that name is already in use');
-      var net = o.network || 'podman';
+      var pod = null;
+      if (o.pod) {
+        pod = S.pods[o.pod]; if (!pod) return err('Error: no pod with name or ID ' + o.pod + ' found: no such pod');
+        if (o.publish.length) return err('Error: invalid config provided: published or exposed ports must be defined when the pod is created: network cannot be configured when it is shared with a pod');
+        if (o.network) return err('Error: invalid config provided: networks must be defined when the pod is created: network cannot be configured when it is shared with a pod');
+      }
+      var net = pod ? pod.network : (o.network || 'podman');
       if (!S.nets[net]) return err('Error: unable to find network with name or ID ' + net + ': network not found');
       var ports = [];
       for (var i = 0; i < o.publish.length; i++) {
@@ -1016,6 +1114,7 @@ var NETWSIM = (function () {
         if (h < 1024) return err('Error: rootlessport cannot expose privileged port ' + h + ', you can add \'net.ipv4.ip_unprivileged_port_start=' + h + '\' to /etc/sysctl.conf (currently 1024), or choose a larger port number (>= 1024): listen tcp 0.0.0.0:' + h + ': bind: permission denied');
         ports.push({ h: h, c: c });
       }
+      if (pod) ports = pod.ports.slice();
       if (o.memory && !/^\d+[kmg]?b?$/i.test(o.memory)) return err('Error: invalid argument "' + o.memory + '" for "-m, --memory" flag');
       var mounts = [];
       for (var mi = 0; mi < o.volume.length; mi++) {
@@ -1040,8 +1139,9 @@ var NETWSIM = (function () {
         id: hex(64), name: o.name || ADJ[Math.floor(Math.random() * 10)] + '_' + NOUN[Math.floor(Math.random() * 10)],
         image: img.key, kind: img.meta.kind, cmd: r.cmd, defcmd: img.meta.cmd, env: o.env.map(function (e) { return e.indexOf('=') > -1 ? e : e + '='; }),
         ports: ports, network: net, ipn: S.ipn++, rm: !!o.rm, detach: !!o.detach, interactive: !!(o.interactive && o.tty),
-        state: 'created', code: 0, created: Date.now(), logs: [], files: {}, fs: {}, mounts: mounts, user: o.user || null
+        state: 'created', code: 0, created: Date.now(), logs: [], files: JSON.parse(JSON.stringify((img.meta && img.meta.files) || {})), fs: {}, mounts: mounts, user: o.user || null, pod: pod ? o.pod : null, aliases: [].concat(o.alias ? [o.alias] : [], cfgAlias || [])
       };
+      cfgAlias = null;
       mounts.forEach(function (m) { if (m.type !== 'bind') return; var d = S.dirs[m.src]; if (m.opts.indexOf('Z') > -1) d.label = { Z: ctr.id, mcs: 'c' + (100 + Math.floor(Math.random() * 900)) + ',c' + (100 + Math.floor(Math.random() * 900)) }; else if (m.opts.indexOf('z') > -1) d.label = 'shared'; if (m.opts.indexOf('U') > -1) d.owner = procUid(ctr); });
       S.ctrs.push(ctr);
       if (create) { print(ctr.id); return true; }
@@ -1054,6 +1154,20 @@ var NETWSIM = (function () {
         return err('Error: rootlessport listen tcp 0.0.0.0:' + conflict.h + ': bind: address already in use');
       }
       ctr.state = 'running'; ctr.started = Date.now();
+      if (ctr.kind === 'mariadb' && !ctr.cmd.length) {
+        var ev = envMap(ctr), bad = !((ev.MYSQL_USER && ev.MYSQL_PASSWORD && ev.MYSQL_DATABASE) || ev.MYSQL_ROOT_PASSWORD);
+        var dataFile = '/var/lib/mysql/data/ibdata1', existing = readFile(ctr, dataFile);
+        var lines = ['=> sourcing 20-validate-variables.sh ...'];
+        var exitCode = null;
+        if (bad) { lines.push('You must either specify the following environment variables:', '  MYSQL_USER (regex: \'^[a-zA-Z0-9_]+$\')', '  MYSQL_PASSWORD (regex: \'^[a-zA-Z0-9_~!@#$%^&*()-=<>,.?;:|]+$\')', '  MYSQL_DATABASE (regex: \'^[a-zA-Z0-9_]+$\')', 'Or the following environment variable:', '  MYSQL_ROOT_PASSWORD (regex: \'^[a-zA-Z0-9_~!@#$%^&*()-=<>,.?;:|]+$\')'); exitCode = 1; }
+        else if (existing.err || (existing.missing && writeFile(ctr, dataFile, 'innodb'))) { lines.push('---> Initializing database ...', 'mysql_install_db: Can\'t create/write to file \'/var/lib/mysql/data/ibdata1\' (Errcode: 13 "Permission denied")', '[ERROR] Aborting'); exitCode = 1; }
+        else if (existing.missing) lines.push('---> Processing basic MySQL configuration files ...', '---> Initializing database ...', '---> Starting MariaDB server with disabled networking ...', '---> Creating user ' + (ev.MYSQL_USER || 'root') + (ev.MYSQL_DATABASE ? ' and database ' + ev.MYSQL_DATABASE : ''), '---> Shutting down temporary server', '---> Running final exec -- Only MariaDB server logs after this point', '[Note] /usr/libexec/mysqld: ready for connections.');
+        else lines.push('---> Processing basic MySQL configuration files ...', '---> Data directory already initialized; skipping database creation', '---> Running final exec -- Only MariaDB server logs after this point', '[Note] /usr/libexec/mysqld: ready for connections.');
+        ctr.logs = ctr.logs.concat(lines);
+        if (fromRun && ctr.detach) print(ctr.id); else if (fromRun) { lines.forEach(function (l) { print(l); }); if (exitCode === null) { note('A foreground database keeps your terminal busy. The simulator stopped it for you. Use -d.'); exitCode = 0; } } else print(ctr.name);
+        if (exitCode !== null) exitCtr(ctr, exitCode);
+        return true;
+      }
       if (longRunning(ctr)) {
         startLogs(ctr);
         if (fromRun && ctr.detach) print(ctr.id);
@@ -1083,7 +1197,7 @@ var NETWSIM = (function () {
     P.ps = function (args) {
       var all = args.some(function (a) { return a === '-a' || a === '--all' || a === '-aq' || a === '-qa'; });
       var quiet = args.some(function (a) { return a === '-q' || a === '--quiet' || a === '-aq' || a === '-qa'; });
-      var bad = args.filter(function (a) { return ['-a', '--all', '-q', '--quiet', '-aq', '-qa'].indexOf(a) === -1; })[0];
+      var bad = args.filter(function (a) { return ['-a', '--all', '-q', '--quiet', '-aq', '-qa', '--pod'].indexOf(a) === -1; })[0];
       if (bad) return err('Error: unknown shorthand flag or option: ' + bad + '   [simulator] supported: -a, -q');
       var list = S.ctrs.filter(function (c) { return all || c.state === 'running'; });
       if (quiet) { list.forEach(function (c) { print(c.id.slice(0, 12)); }); return true; }
@@ -1278,6 +1392,203 @@ var NETWSIM = (function () {
       }
       return err('Error: unrecognized command `podman volume ' + (sub || '') + '`   [simulator] supported: create, ls, inspect, rm, prune');
     };
+    P.pod = function (args) {
+      var sub = args[0], rest = args.slice(1), force = rest.indexOf('-f') > -1 || rest.indexOf('--force') > -1;
+      function members(n) { return S.ctrs.filter(function (c) { return c.pod === n; }); }
+      if (sub === 'create') {
+        var name = null, ports = [], net = 'podman';
+        for (var i = 0; i < rest.length; i++) {
+          if (rest[i] === '--name' || rest[i] === '-n') name = rest[++i];
+          else if (rest[i].indexOf('--name=') === 0) name = rest[i].slice(7);
+          else if (rest[i] === '-p' || rest[i] === '--publish') { var b = rest[++i].split(':'); var h = Number(b[b.length - 2]), c = Number(b[b.length - 1]); if (h < 1024) return err('Error: rootlessport cannot expose privileged port ' + h + ', you can add \'net.ipv4.ip_unprivileged_port_start=' + h + '\' to /etc/sysctl.conf (currently 1024), or choose a larger port number (>= 1024)'); ports.push({ h: h, c: c }); }
+          else if (rest[i] === '--network') { net = rest[++i]; if (!S.nets[net]) return err('Error: unable to find network with name or ID ' + net + ': network not found'); }
+        }
+        name = name || ADJ[Math.floor(Math.random() * 10)] + '_' + NOUN[Math.floor(Math.random() * 10)];
+        if (S.pods[name]) return err('Error: adding pod to state: name "' + name + '" is in use: pod already exists');
+        S.pods[name] = { id: hex(64), ports: ports, network: net, created: Date.now() };
+        print(S.pods[name].id); return true;
+      }
+      if (sub === 'ps' || sub === 'ls' || sub === 'list') {
+        print(pad('POD ID', 14) + pad('NAME', 14) + pad('STATUS', 10) + pad('CREATED', 16) + pad('INFRA ID', 14) + '# OF CONTAINERS');
+        Object.keys(S.pods).forEach(function (n) { var p = S.pods[n], m = members(n), st = m.some(function (c) { return c.state === 'running'; }) ? 'Running' : m.length ? 'Exited' : 'Created'; print(pad(p.id.slice(0, 12), 14) + pad(n, 14) + pad(st, 10) + pad(ago(p.created) + ' ago', 16) + pad(p.id.slice(20, 32), 14) + (m.length + 1)); });
+        return true;
+      }
+      var names = rest.filter(function (x) { return x[0] !== '-'; });
+      if (!names.length) return err('Error: you must provide at least one pod name or ID');
+      var ok = true;
+      names.forEach(function (n) {
+        if (!S.pods[n]) { ok = err('Error: no pod with name or ID ' + n + ' found: no such pod'); return; }
+        var m = members(n);
+        if (sub === 'rm') { if (m.some(function (c) { return c.state === 'running'; }) && !force) { ok = err('Error: pod ' + S.pods[n].id + ' has containers that are not ready to be removed: cannot remove container as it is running - running or paused containers cannot be removed without force: container state improper'); return; } m.forEach(function (c) { S.ctrs.splice(S.ctrs.indexOf(c), 1); }); delete S.pods[n]; print(S.pods[n] ? '' : n); }
+        else if (sub === 'stop') { m.forEach(function (c) { if (c.state === 'running') exitCtr(c, 0); }); print(n); }
+        else if (sub === 'start') { m.forEach(function (c) { if (c.state !== 'running') startCtr(c, false); }); print(n); }
+        else ok = err('Error: unrecognized command `podman pod ' + (sub || '') + '`   [simulator] supported: create, ps, start, stop, rm');
+      });
+      return ok;
+    };
+    function kubeYaml(name) {
+      var p = S.pods[name], cs = p ? S.ctrs.filter(function (c) { return c.pod === name; }) : [find(name)].filter(Boolean);
+      if (!cs.length && !p) return null;
+      var y = ['# Save the output of this file and use kubectl create -f to import', '# it into Kubernetes.', '#', '# Created with podman-4.9.4', 'apiVersion: v1', 'kind: Pod', 'metadata:', '  labels:', '    app: ' + name, '  name: ' + name, 'spec:', '  containers:'];
+      cs.forEach(function (c, i) {
+        y.push('  - image: ' + c.image, '    name: ' + (p ? c.name : name));
+        if (c.cmd.length) y.push('    args:', c.cmd.map(function (x) { return '    - ' + x; }).join('\n'));
+        var env = c.env; if (env.length) { y.push('    env:'); env.forEach(function (e) { var k = e.indexOf('='); y.push('    - name: ' + e.slice(0, k), '      value: ' + e.slice(k + 1)); }); }
+        var ports = (p && i === 0 ? p.ports : (!p ? c.ports : [])); if (ports.length) { y.push('    ports:'); ports.forEach(function (q) { y.push('    - containerPort: ' + q.c, '      hostPort: ' + q.h); }); }
+        if (c.mounts.length) { y.push('    volumeMounts:'); c.mounts.forEach(function (m, j) { y.push('    - mountPath: ' + m.dst, '      name: ' + (m.type === 'volume' ? m.src + '-pvc' : m.src.replace(/[^a-z0-9]/g, '') + '-host-' + j)); }); }
+      });
+      return y.join('\n').split('\n');
+    }
+    P.kube = function (args) {
+      var sub = args[0], rest = args.slice(1);
+      if (sub === 'generate') {
+        var fi = rest.indexOf('-f'), file = fi > -1 ? rest[fi + 1] : null; var name = rest.filter(function (x, i) { return x[0] !== '-' && !(fi > -1 && i === fi + 1); })[0];
+        if (!name) return err('Error: you must provide at least one name or ID');
+        var y = kubeYaml(name); if (!y) return err('Error: ' + name + ' does not refer to a container or pod: no pod or container found');
+        if (file) { S.files[file] = y.join('\n'); return true; }
+        y.forEach(function (l) { print(l); }); return true;
+      }
+      if (sub === 'play') {
+        var f = rest.filter(function (x) { return x[0] !== '-'; })[0], down = rest.indexOf('--down') > -1;
+        if (!f || S.files[f] == null) return err('Error: ' + (f || '') + ': no such file or directory');
+        var doc; try { doc = parseYaml(S.files[f]); } catch (e) { return err('Error: ' + f + ': yaml: ' + e.message); }
+        if (!doc || doc.kind !== 'Pod') return err('Error: [simulator] kube play here supports kind: Pod only');
+        var pn = (doc.metadata && doc.metadata.name) || 'pod';
+        if (down) return P.pod(['rm', '-f', pn]);
+        if (S.pods[pn]) return err('Error: ' + pn + ': pod already exists. Use podman kube play --down ' + f + ' first');
+        var ports = []; (doc.spec.containers || []).forEach(function (c) { (c.ports || []).forEach(function (q) { if (q.hostPort) ports.push({ h: Number(q.hostPort), c: Number(q.containerPort) }); }); });
+        S.pods[pn] = { id: hex(64), ports: ports, network: 'podman', created: Date.now() };
+        print('Pod:'); print(S.pods[pn].id); print('Containers:');
+        var ok = true;
+        (doc.spec.containers || []).forEach(function (c) {
+          var a = ['-d', '--pod', pn, '--name', pn + '-' + c.name]; (c.env || []).forEach(function (e) { a.push('-e', e.name + '=' + e.value); });
+          a.push(c.image); (c.args || []).forEach(function (x) { a.push(String(x)); });
+          if (!P.run(a)) ok = false;
+        });
+        return ok;
+      }
+      return err('Error: unrecognized command `podman kube ' + (sub || '') + '`   [simulator] supported: generate, play');
+    };
+    P.generate = function (args) { if (args[0] === 'kube') { note('podman generate kube is the older spelling of podman kube generate.'); return P.kube(['generate'].concat(args.slice(1))); } return err('Error: [simulator] try podman kube generate'); };
+    P.play = function (args) { if (args[0] === 'kube') return P.kube(['play'].concat(args.slice(1))); return err('Error: [simulator] try podman kube play'); };
+    P.build = function (args) {
+      var tag = null, file = null, ctx = null;
+      for (var i = 0; i < args.length; i++) {
+        if (args[i] === '-t' || args[i] === '--tag') tag = args[++i];
+        else if (args[i] === '-f' || args[i] === '--file') file = args[++i];
+        else if (args[i][0] !== '-') ctx = args[i];
+      }
+      if (!ctx) return err('Error: no context directory and no Containerfile specified   [simulator] add . at the end: podman build -t NAME .');
+      file = file || (S.files.Containerfile != null ? 'Containerfile' : S.files.Dockerfile != null ? 'Dockerfile' : null);
+      if (!file || S.files[file] == null) return err('Error: no Containerfile or Dockerfile specified or found in context directory, /home/student: no such file or directory');
+      var steps = S.files[file].replace(/\\\n/g, ' ').split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l && l[0] !== '#'; });
+      var base = null, meta = null, files = {}, user = null, cmd = null, n = steps.length;
+      for (var j = 0; j < steps.length; j++) {
+        var st = steps[j], ins = st.split(/\s+/)[0].toUpperCase(), arg = st.slice(st.indexOf(' ') + 1).trim();
+        print('STEP ' + (j + 1) + '/' + n + ': ' + st);
+        if (ins === 'FROM') {
+          var lk = findLocal(arg.split(/\s+/)[0]);
+          if (lk.length) { base = S.images[lk[0]]; }
+          else { var r = resolveImage(arg.split(/\s+/)[0]); if (r.err) return err(r.err); pull(r); base = S.images[r.key]; }
+          meta = JSON.parse(JSON.stringify(base.meta)); files = JSON.parse(JSON.stringify(meta.files || {}));
+          continue;
+        }
+        if (!meta) return err('Error: no FROM statement found');
+        if (ins === 'COPY' || ins === 'ADD') {
+          var parts = arg.split(/\s+/).filter(function (x) { return x.indexOf('--') !== 0; }), dst = parts.pop();
+          for (var k = 0; k < parts.length; k++) {
+            var src = parts[k].replace(/^\.\//, '');
+            if (S.files[src] == null) return err('Error: building at STEP "' + st + '": checking on sources under "/home/student": copier: stat: "/' + src + '": no such file or directory');
+            var d = dst.replace(/\/$/, '');
+            if (d === '/var/www/html') files[src] = S.files[src]; else if (d.indexOf('/var/www/html/') === 0) files[d.slice(14)] = S.files[src];
+          }
+        } else if (ins === 'USER') user = arg;
+        else if (ins === 'CMD') { try { var cj = JSON.parse(arg); cmd = Array.isArray(cj) ? cj.join(' ') : arg; } catch (e) { cmd = '/bin/sh -c ' + arg; } }
+        else if (ins === 'RUN' && user && user !== 'root' && user !== '0' && /\b(dnf|microdnf|yum)\b/.test(arg)) { print('error: This command has to be run with superuser privileges (under the root user on most systems).', 'err'); return err('Error: building at STEP "' + st + '": while running runtime: exit status 1'); }
+        print('--> ' + hex(12));
+      }
+      if (!meta) return err('Error: no FROM statement found');
+      var q = qualifyTarget(tag || ('localhost/' + hex(12) + ':latest'));
+      var id = hex(12), dg = 'sha256:' + id + hex(52);
+      meta.files = files; if (cmd) meta.cmd = cmd; meta.created = 'Less than a second ago';
+      S.images[q.key] = { repo: q.full, tag: q.tag, id: id, digest: dg, size: base.size, created: 'Less than a second ago', meta: meta };
+      print('COMMIT ' + (tag || '')); print('--> ' + id); if (tag) print('Successfully tagged ' + q.key); print(id + dg.slice(19, 71));
+      S.flags['build:' + q.key] = true;
+      return true;
+    };
+    function compose(args) {
+      var file = null, proj = cfg.project || 'student', i = 0;
+      while (args[i] && args[i][0] === '-') { if (args[i] === '-f' || args[i] === '--file') file = args[++i]; else if (args[i] === '-p' || args[i] === '--project-name') proj = args[++i]; i++; }
+      var sub = args[i], rest = args.slice(i + 1);
+      if (!file) file = ['compose.yaml', 'compose.yml', 'docker-compose.yml', 'docker-compose.yaml'].filter(function (f) { return S.files[f] != null; })[0];
+      if (!file || S.files[file] == null) return err('no compose.yaml, docker-compose.yml or container-compose.yml file found, pass files with -f');
+      var doc; try { doc = parseYaml(S.files[file]); } catch (e) { return err('Error: ' + file + ': ' + e.message); }
+      if (!doc || typeof doc.services !== 'object' || !doc.services) return err('Error: ' + file + ': no services defined   [simulator] the top level needs a services: key');
+      var svcs = doc.services, rec = S.compose[proj] = S.compose[proj] || { ctrs: {}, nets: [], vols: [] };
+      function cname(sv) { return (svcs[sv] && svcs[sv].container_name) || proj + '_' + sv + '_1'; }
+      function order() {
+        var out = [], seen = {}, stack = {};
+        function visit(n) { if (seen[n]) return; if (stack[n]) throw new Error('dependency cycle at ' + n); stack[n] = true; var d = svcs[n].depends_on; var deps = Array.isArray(d) ? d : d && typeof d === 'object' ? Object.keys(d) : []; deps.forEach(function (x) { if (!svcs[x]) throw new Error('service "' + n + '" depends on undefined service "' + x + '"'); visit(x); }); seen[n] = true; out.push(n); }
+        Object.keys(svcs).forEach(visit); return out;
+      }
+      if (sub === 'up') {
+        var list; try { list = order(); } catch (e) { return err('Error: ' + e.message); }
+        if (rest.indexOf('-d') === -1 && rest.indexOf('--detach') === -1) note('Without -d, podman-compose stays attached and streams every container\u2019s logs. The simulator starts them detached.');
+        var topNets = doc.networks && typeof doc.networks === 'object' ? Object.keys(doc.networks) : [];
+        var topVols = doc.volumes && typeof doc.volumes === 'object' ? Object.keys(doc.volumes) : [];
+        var needDefault = list.some(function (sv) { return !svcs[sv].networks; });
+        var nets = topNets.map(function (n) { return proj + '_' + n; }).concat(needDefault ? [proj + '_default'] : []);
+        nets.forEach(function (n) { if (!S.nets[n]) { print('podman network create ' + n, 'note'); S.nets[n] = { id: hex(12), dns: true, subnet: '10.89.' + (Object.keys(S.nets).length) }; } if (rec.nets.indexOf(n) === -1) rec.nets.push(n); });
+        topVols.forEach(function (v) { var vn = proj + '_' + v; if (!S.vols[vn]) { print('podman volume create ' + vn, 'note'); S.vols[vn] = { files: {}, created: new Date().toISOString() }; } if (rec.vols.indexOf(vn) === -1) rec.vols.push(vn); });
+        var ok = true;
+        list.forEach(function (sv) {
+          if (!ok) return;
+          var d = svcs[sv], name = cname(sv), ex = find(name);
+          if (ex && ex.state === 'running') { print('Container ' + name + ' is already running'); return; }
+          if (ex) { S.ctrs.splice(S.ctrs.indexOf(ex), 1); }
+          var image = d.image;
+          if (d.build) { var bctx = typeof d.build === 'string' ? d.build : d.build.context || '.'; image = proj + '_' + sv; print('podman build -t ' + image + ' ' + bctx, 'note'); if (!P.build(['-t', image].concat(d.build.dockerfile ? ['-f', d.build.dockerfile] : []).concat([bctx]))) { ok = false; return; } }
+          if (!image) { ok = err('Error: service "' + sv + '" has neither an image nor a build section'); return; }
+          var a = ['-d', '--name', name];
+          var sn = d.networks ? (Array.isArray(d.networks) ? d.networks : Object.keys(d.networks)) : null;
+          if (sn) { if (sn.some(function (n) { return topNets.indexOf(n) === -1; })) { ok = err('Error: service "' + sv + '" refers to undefined network ' + sn.filter(function (n) { return topNets.indexOf(n) === -1; })[0] + ': invalid compose project'); return; } if (sn.length > 1) note(sv + ' lists several networks; the simulator attaches it to the first one only.'); a.push('--network', proj + '_' + sn[0]); }
+          else a.push('--network', proj + '_default');
+          var env = d.environment; if (Array.isArray(env)) env.forEach(function (e) { a.push('-e', String(e)); }); else if (env && typeof env === 'object') Object.keys(env).forEach(function (k) { a.push('-e', k + '=' + (env[k] == null ? '' : env[k])); });
+          if (d.env_file) note(sv + ': env_file is not supported in the simulator; put the variables under environment.');
+          (d.ports || []).forEach(function (p) { a.push('-p', String(p)); });
+          var vbad = null;
+          (d.volumes || []).forEach(function (v) { v = String(v); var src = v.split(':')[0]; if (!/^[.\/~]/.test(src) && v.indexOf(':') > -1) { if (topVols.indexOf(src) === -1) vbad = src; v = proj + '_' + v; } if (v.indexOf(':') > -1) a.push('-v', v); });
+          if (vbad) { ok = err('Error: service "' + sv + '" refers to undefined volume ' + vbad + ': invalid compose project'); return; }
+          if (d.user) a.push('--user', String(d.user));
+          a.push(image);
+          if (d.command) (Array.isArray(d.command) ? d.command.map(String) : tokenize(String(d.command))).forEach(function (x) { a.push(x); });
+          print('podman run ' + a.map(function (x) { return /\s/.test(x) ? "'" + x + "'" : x; }).join(' ').replace('-d --name ' + name, '--name=' + name + ' -d --network-alias ' + sv), 'note');
+          cfgAlias = [sv];
+          var ran = P.run(a); cfgAlias = null;
+          if (!ran) { ok = false; return; }
+          rec.ctrs[sv] = name;
+        });
+        return ok;
+      }
+      if (sub === 'ps') {
+        print(pad('CONTAINER ID', 14) + pad('IMAGE', 49) + pad('STATUS', 28) + pad('PORTS', 24) + 'NAMES');
+        Object.keys(rec.ctrs).forEach(function (sv) { var c = find(rec.ctrs[sv]); if (!c) return; var status = c.state === 'running' ? 'Up ' + ago(c.started) : 'Exited (' + c.code + ') ' + ago(c.finished || c.created) + ' ago'; print(pad(c.id.slice(0, 12), 14) + pad(c.image, 49) + pad(status, 28) + pad(c.ports.map(function (p) { return '0.0.0.0:' + p.h + '->' + p.c + '/tcp'; }).join(', '), 24) + c.name); });
+        return true;
+      }
+      if (sub === 'logs') { var svn = rest.filter(function (x) { return x[0] !== '-'; })[0]; var targets = svn ? [svn] : Object.keys(rec.ctrs); var okl = true; targets.forEach(function (sv) { var c = rec.ctrs[sv] && find(rec.ctrs[sv]); if (!c) { okl = err('Error: no such service: ' + sv); return; } c.logs.forEach(function (l) { print((svn ? '' : sv + '  | ') + l); }); }); return okl; }
+      if (sub === 'down') {
+        var vflag = rest.indexOf('-v') > -1 || rest.indexOf('--volumes') > -1;
+        Object.keys(rec.ctrs).reverse().forEach(function (sv) { var c = find(rec.ctrs[sv]); if (c) { print('podman stop -t 10 ' + c.name, 'note'); print(c.name); S.ctrs.splice(S.ctrs.indexOf(c), 1); print('podman rm ' + c.name, 'note'); print(c.name); } });
+        rec.nets.forEach(function (n) { if (S.nets[n] && !S.ctrs.some(function (c) { return c.network === n; })) { print('podman network rm ' + n, 'note'); delete S.nets[n]; } });
+        if (vflag) rec.vols.forEach(function (v) { if (S.vols[v]) { print('podman volume rm ' + v, 'note'); delete S.vols[v]; } });
+        S.flags['down:' + proj] = vflag ? 'v' : true;
+        S.compose[proj] = { ctrs: {}, nets: [], vols: vflag ? [] : rec.vols };
+        return true;
+      }
+      if (sub === 'config') { var lo; try { lo = order(); } catch (e) { return err('Error: ' + e.message); } print('services:'); lo.forEach(function (sv) { print('  ' + sv + ':  image ' + (svcs[sv].image || '(build)') + ', container ' + cname(sv)); }); note('The file parsed without errors. Services are listed in start order.'); return true; }
+      if (sub === 'stop' || sub === 'start' || sub === 'restart') { var okk = true; Object.keys(rec.ctrs).forEach(function (sv) { if (!P[sub]([rec.ctrs[sv]])) okk = false; }); return okk; }
+      return err('Error: unrecognized command `' + (sub || '') + '`   [simulator] supported: up -d, ps, logs [SERVICE], down [-v], stop, start, config');
+    }
     P.version = function () { print('Client:       Podman Engine'); print('Version:      4.9.4-rhel'); print('API Version:  4.9.4-rhel'); print('Go Version:   go1.21.9 (Red Hat 1.21.9-2.el9_4)'); print('OS/Arch:      linux/amd64'); return true; };
     P.login = function (args) {
       var reg = args.filter(function (a, i) { return a[0] !== '-' && !(i > 0 && (args[i - 1] === '-u' || args[i - 1] === '--username')); })[0];
@@ -1429,6 +1740,7 @@ var NETWSIM = (function () {
         '  podman login | logout | network ls|create|rm|inspect | version',
         '  podman volume create|ls|inspect|rm|prune   run -v NAME:/path  -v ./dir:/path[:Z|:z|:U|:ro]   podman unshare chown UID:GID DIR',
         '  host: ls [-ldZ DIR]  mkdir DIR  echo TEXT > DIR/FILE  cat DIR/FILE',
+        '  podman build -t NAME . | pod create|ps|rm | run --pod POD | kube generate|play | podman-compose up -d|ps|logs|down|config',
         '  skopeo inspect [--format \'{{.Digest}}\'] docker://IMAGE | skopeo list-tags docker://REPO | skopeo copy docker://SRC docker://DEST',
         '  curl http://localhost:PORT     ls     cat index.html     clear     help',
         'Images: ' + Object.keys(IMG).join(', ')].forEach(function (l) { print(l, 'note'); });
@@ -1465,6 +1777,8 @@ var NETWSIM = (function () {
       if (t[0] === 'hostname') { print('workstation.lab.example.com'); return true; }
       if (t[0] === 'skopeo') return skopeo(t);
       if (t[0] === 'rm' && S.files[t[1]] != null) { delete S.files[t[1]]; delete S.archives[t[1]]; return true; }
+      if (t[0] === 'podman-compose') return compose(t.slice(1));
+      if (t[0] === 'podman' && t[1] === 'compose') return compose(t.slice(2));
       if (t[0] !== 'podman') return err('bash: ' + t[0] + ': command not found   [simulator] type help');
       if (t[1] === '--version' || t[1] === '-v') { print('podman version 4.9.4-rhel'); return true; }
       if (!t[1]) { help(); return null; }
@@ -1480,7 +1794,7 @@ var NETWSIM = (function () {
     M.forEach(function (m, i) {
       var li = el('li'); li.id = 'm' + i;
       var row = el('div', { class: 'mt' }); row.appendChild(el('span', null, m.t)); row.appendChild(el('span', { class: 'st' }, 'To do'));
-      var d = el('details'); d.appendChild(el('summary', null, 'Show hint'));
+      var d = el('details'); d.appendChild(el('summary', null, cfg.hintLabel || 'Show hint'));
       var pre = el('code'); pre.textContent = m.h; pre.style.whiteSpace = 'pre-wrap'; d.appendChild(pre);
       li.appendChild(row); li.appendChild(d); mList.appendChild(li);
     });
@@ -1522,7 +1836,7 @@ var NETWSIM = (function () {
     greet(); paintM();
     return api;
   }
-  return { tokenize: tokenize, parseRun: parseRun, create: create };
+  return { tokenize: tokenize, parseRun: parseRun, create: create, yaml: parseYaml };
 })();
 (function () {
   'use strict';
