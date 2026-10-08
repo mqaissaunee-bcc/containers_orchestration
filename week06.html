@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 6: Troubleshooting Containers | NETW 112 Containers &amp; Orchestration</title>
+<meta name="description" content="NETW 112 Week 6. A repeatable method for diagnosing containers: exit codes, logs, events, inspect, networking checks, debugging minimal images and attaching remote debuggers.">
+<style>:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#E9EEF1; --ink:#17212B; --muted:#4A5866;
+  --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0;
+  --signal:#7E4C00; --signal-bg:#FFF3DC; --signal-line:#D9A24A;
+  --ok:#1C6A39; --ok-bg:#E3F4E8; --bad:#A1252A; --bad-bg:#FBE6E6;
+  --term-bg:#0F161D; --term-fg:#D3DFE7; --term-dim:#8FA3B1; --term-prompt:#7FD3C9; --term-err:#FF9C9C; --term-ok:#A8E6B5;
+  --steel-a:#C7D2DA; --steel-b:#B7C4CE;
+  --sans:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem; --s7:3rem; --s8:4.5rem;
+  --measure:68ch; --radius-sm:4px; --radius:8px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0E141A; --surface:#151E27; --surface-2:#1C2833; --ink:#E2E9EF; --muted:#A3B2BF;
+    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A;
+    --signal:#F0B65C; --signal-bg:#2A2214; --signal-line:#8A6526;
+    --ok:#74D19B; --ok-bg:#15301F; --bad:#F2898C; --bad-bg:#3A1C1E;
+    --term-bg:#080C10; --steel-a:#273440; --steel-b:#22303B;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:1rem;line-height:1.55}
+a{color:var(--accent);text-underline-offset:.15em}
+a:hover{color:var(--accent-strong)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:2px}
+.skip-link{position:absolute;left:var(--s4);top:-4rem;background:var(--accent);color:var(--accent-ink);padding:var(--s3) var(--s4);z-index:100;border-radius:var(--radius-sm);font-weight:600}
+.skip-link:focus{top:var(--s4)}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+img,svg{max-width:100%}
+code{overflow-wrap:anywhere}
+pre code,pre .c{overflow-wrap:normal}
+
+/* top bar */
+.topbar{border-bottom:1px solid var(--line);background:var(--surface)}
+.topbar-inner{max-width:76rem;margin:0 auto;padding:var(--s2) var(--s4);display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;justify-content:space-between}
+.brand{font-weight:600;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;gap:var(--s2);min-height:44px}
+.brand-code{font-family:var(--mono);font-size:.85rem;background:var(--ink);color:var(--surface);padding:.1rem .4rem;border-radius:var(--radius-sm)}
+.weeknav{display:flex;gap:var(--s2);flex-wrap:wrap}
+.weeknav a,.weeknav span{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);text-decoration:none;font-size:.9rem}
+.weeknav span{color:var(--muted)}
+
+/* module masthead */
+.masthead{max-width:76rem;margin:0 auto;padding:var(--s7) var(--s4) var(--s5)}
+.masthead .weekno{font-family:var(--mono);color:var(--accent);font-size:1rem;margin:0}
+.masthead h1{font-size:clamp(2rem,5vw,3.25rem);line-height:1.08;margin:var(--s2) 0 var(--s4);letter-spacing:-.015em;font-weight:600;max-width:20ch}
+.deck{font-family:var(--serif);font-size:1.2rem;line-height:1.6;max-width:var(--measure);color:var(--muted);margin:0 0 var(--s5)}
+.meta{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s6);margin:0;padding:0}
+.meta div{min-width:9rem}
+.meta dt{font-size:.8rem;color:var(--muted)}
+.meta dd{margin:0;font-weight:600}
+.progress-wrap{margin-top:var(--s5);max-width:28rem}
+.progress-label{font-size:.85rem;color:var(--muted);display:flex;justify-content:space-between}
+.bar{height:10px;background:var(--surface-2);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* layout */
+.layout{max-width:76rem;margin:0 auto;padding:0 var(--s4) var(--s8);display:grid;grid-template-columns:1fr;gap:var(--s6)}
+@media (min-width:62rem){.layout{grid-template-columns:15rem minmax(0,1fr)}}
+.toc{font-size:.92rem}
+.toc details{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:var(--s2) var(--s3)}
+.toc summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+@media (min-width:62rem){
+  .toc{position:sticky;top:var(--s4);align-self:start;max-height:calc(100vh - 2rem);overflow:auto}
+  .toc details{border:0;background:transparent;padding:0}
+  .toc summary{pointer-events:none;list-style:none}
+  .toc summary::-webkit-details-marker{display:none}
+}
+.toc ol{list-style:none;margin:var(--s2) 0 0;padding:0;counter-reset:t}
+.toc li{counter-increment:t}
+.toc a{display:flex;gap:var(--s2);align-items:baseline;padding:var(--s2);min-height:40px;text-decoration:none;color:var(--ink);border-left:3px solid transparent}
+.toc a::before{content:counter(t);font-family:var(--mono);font-size:.8rem;color:var(--muted);min-width:1.4em}
+.toc a[aria-current="true"]{border-left-color:var(--accent);background:var(--accent-soft)}
+.toc .tick{margin-left:auto;color:var(--ok);font-weight:700}
+
+/* content */
+main{min-width:0}
+.unit{padding:var(--s6) 0 var(--s5);border-top:1px solid var(--line);scroll-margin-top:var(--s4)}
+.unit:first-child{border-top:0;padding-top:0}
+.unit>h2{font-size:clamp(1.45rem,3vw,1.9rem);line-height:1.2;margin:0 0 var(--s4);font-weight:600;letter-spacing:-.01em;display:flex;gap:var(--s3);align-items:baseline}
+.unit>h2 .n{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:500}
+.unit h3{font-size:1.15rem;margin:var(--s6) 0 var(--s2);font-weight:600}
+.prose{font-family:var(--serif);font-size:1.075rem;line-height:1.7;max-width:var(--measure)}
+.prose p,.prose ul,.prose ol{margin:0 0 var(--s4)}
+.prose li{margin-bottom:var(--s2)}
+.prose code,.inline-code{overflow-wrap:anywhere;font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:.08em .32em;border-radius:3px}
+.prose strong{font-family:var(--sans);font-weight:600;font-size:.97em}
+.objectives{max-width:var(--measure);padding-left:1.25rem;font-family:var(--serif);font-size:1.075rem;line-height:1.65}
+.objectives li{margin-bottom:var(--s2)}
+
+/* callouts */
+.callout{max-width:var(--measure);border-left:4px solid var(--accent);background:var(--surface);padding:var(--s3) var(--s4);margin:var(--s5) 0;border-radius:0 var(--radius) var(--radius) 0;font-size:.98rem}
+.callout>p{margin:0 0 var(--s2)}.callout>p:last-child{margin:0}
+.callout .label{font-weight:600;display:block;margin-bottom:var(--s1)}
+.callout.exam{border-left-color:var(--signal-line);background:var(--signal-bg)}
+.callout.exam .label{color:var(--signal)}
+.callout.warn{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.warn .label{color:var(--bad)}
+
+/* command blocks */
+.cmd{position:relative;max-width:var(--measure);margin:var(--s4) 0;background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s4);padding-right:5.5rem;font-family:var(--mono);font-size:.88rem;line-height:1.55;overflow-x:auto;white-space:pre}
+.cmd .p{color:var(--term-prompt);user-select:none}
+.cmd .o{color:var(--term-dim)}
+.copy-btn{position:absolute;top:var(--s2);right:var(--s2);min-height:36px;min-width:44px;padding:0 var(--s3);background:transparent;color:var(--term-fg);border:1px solid var(--term-dim);border-radius:var(--radius-sm);font-family:var(--sans);font-size:.8rem;cursor:pointer}
+.copy-btn:hover{border-color:var(--term-prompt);color:var(--term-prompt)}
+
+/* tables */
+.table-wrap{overflow-x:auto;max-width:100%;margin:var(--s4) 0}
+table{border-collapse:collapse;min-width:32rem;font-size:.94rem}
+th,td{text-align:left;padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;background:var(--surface-2)}
+td code{font-family:var(--mono);font-size:.86rem}
+
+/* buttons */
+.btn{min-height:44px;min-width:44px;padding:0 var(--s4);border-radius:var(--radius-sm);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:600 .95rem var(--sans);cursor:pointer}
+.btn:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.done-row{margin-top:var(--s5);display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
+.done-btn[aria-pressed="true"]{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.done-btn[aria-pressed="true"]::before{content:"✓ "}
+
+/* interactive frame */
+.lab-frame{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:var(--s5);margin:var(--s5) 0}
+.lab-frame>h3:first-child{margin-top:0}
+.hint{color:var(--muted);font-size:.92rem;max-width:var(--measure)}
+
+/* quiz */
+.quiz-q{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:var(--s4);margin:0 0 var(--s4);background:var(--surface);max-width:46rem}
+.quiz-q legend{overflow-wrap:anywhere;max-width:100%;font-weight:600;padding:0 var(--s2);font-size:1.02rem}
+.quiz-q .qn{font-family:var(--mono);color:var(--accent);margin-right:var(--s2)}
+.choice{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s2) var(--s3);min-height:44px;border-radius:var(--radius-sm);cursor:pointer}
+.choice:hover{background:var(--surface-2)}
+.choice>span{overflow-wrap:anywhere}
+.choice input{margin-top:.3rem;width:1.1rem;height:1.1rem;flex:none}
+.choice.is-right{background:var(--ok-bg)}
+.choice.is-wrong{background:var(--bad-bg)}
+.feedback{margin-top:var(--s3);font-size:.96rem}
+.feedback .verdict{font-weight:700}
+.feedback.right .verdict{color:var(--ok)}
+.feedback.wrong .verdict{color:var(--bad)}
+.quiz-summary{font-weight:600;margin:var(--s3) 0}
+
+/* lab bridge */
+.bridge{border:2px solid var(--signal-line);background:var(--signal-bg);border-radius:var(--radius);padding:var(--s5);max-width:52rem}
+.bridge h3{margin-top:0;color:var(--signal)}
+.bridge ol,.bridge ul{font-family:var(--serif);font-size:1.05rem;line-height:1.65;padding-left:1.25rem}
+.checklist{list-style:none;padding:0!important}
+.checklist li{display:flex;gap:var(--s3);align-items:flex-start;margin-bottom:var(--s2)}
+.checklist input{width:1.2rem;height:1.2rem;margin-top:.35rem;flex:none}
+
+/* footer */
+.site-foot{border-top:1px solid var(--line);background:var(--surface);font-size:.88rem;color:var(--muted)}
+.site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
+.site-foot p{margin:0 0 var(--s2);max-width:80ch}
+@media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+/* beyond red hat */
+.unit.beyond>h2::after{content:"";flex:1;height:2px;margin-left:var(--s3);align-self:center;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
+.eco-tag{display:inline-block;font:600 .78rem var(--sans);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.1rem .55rem;margin-bottom:var(--s3)}
+
+.cases-bar{display:flex;flex-wrap:wrap;gap:var(--s2);margin-bottom:var(--s4)}
+.cases-bar button{min-height:44px;min-width:44px;padding:0 var(--s3);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--radius-sm);font:600 .9rem var(--mono);cursor:pointer}
+.cases-bar button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)}
+.cases-bar button.solved::after{content:" ✓";color:var(--ok)}
+.case h3{margin-top:0}
+.case .symptom{font-family:var(--serif);font-size:1.08rem;line-height:1.6;max-width:var(--measure)}
+.case .setup{font-family:var(--mono);font-size:.84rem;background:var(--surface-2);padding:var(--s2) var(--s3);border-radius:var(--radius-sm);overflow-x:auto;white-space:pre;margin:var(--s3) 0}
+.probes{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0}
+.probes button{min-height:40px;padding:0 var(--s3);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--radius-sm);font:.82rem var(--mono);cursor:pointer;text-align:left}
+.probes button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.probe-out{background:var(--term-bg);color:var(--term-fg);border-radius:var(--radius);padding:var(--s3) var(--s4);font:.82rem/1.5 var(--mono);white-space:pre;overflow:auto;max-height:22rem;min-height:6rem;margin:0}
+.probe-out .p{color:var(--term-prompt)}
+.diag{margin-top:var(--s4)}
+.diag fieldset{border:1px solid var(--line);border-radius:var(--radius);padding:var(--s3);margin:0;min-width:0}
+.diag legend{font-weight:600;padding:0 var(--s2)}
+.fix{margin-top:var(--s3);border-left:4px solid var(--ok);background:var(--ok-bg);padding:var(--s3) var(--s4);border-radius:0 var(--radius) var(--radius) 0;max-width:var(--measure)}
+.fix pre{font:.84rem var(--mono);white-space:pre-wrap;margin:var(--s2) 0 0}
+.case-score{font-weight:600;margin:var(--s3) 0 0}
+</style>
+</head>
+<body data-module="w06">
+<a href="#main" class="skip-link">Skip to main content</a>
+<div id="sr-status" class="vh" role="status" aria-live="polite"></div>
+
+<header>
+  <div class="topbar"><div class="topbar-inner">
+    <a class="brand" href="index.html"><span class="brand-code">NETW 112</span> Course home</a>
+    <nav class="weeknav" aria-label="Week navigation"><a href="week05.html">Previous: Week 5</a><span>Week 7 coming soon</span></nav>
+  </div></div>
+  <div class="masthead">
+    <p class="weekno">Week 6</p>
+    <h1>When containers misbehave</h1>
+    <p class="deck">Every container problem leaves evidence: an exit code, a log line, a setting in inspect, a port that answers on one side and not the other. This week gives you a method for collecting that evidence quickly, plus eight broken containers to practice on.</p>
+    <dl class="meta">
+      <div><dt>Red Hat course</dt><dd>DO188, Chapter 6 topics</dd></div>
+      <div><dt>Session type</dt><dd>Lab, 1 graded</dd></div>
+      <div><dt>Course outcome</dt><dd>Outcome 1</dd></div>
+      <div><dt>Time</dt><dd>About 3 hours with the lab</dd></div>
+    </dl>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Your progress this week</span><span id="progress-count">0 of 0 sections</span></div>
+      <div class="bar" id="progress" role="progressbar" aria-label="Week 6 progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Sections in this week">
+    <details open><summary>In this week</summary>
+      <ol>
+        <li><a href="#goals">Goals</a></li>
+        <li><a href="#method">A troubleshooting method</a></li>
+        <li><a href="#codes">Reading exit codes</a></li>
+        <li><a href="#logs">Logs and events</a></li>
+        <li><a href="#live">Looking at a live container</a></li>
+        <li><a href="#netchk">Network checks</a></li>
+        <li><a href="#notools">When the image has no tools</a></li>
+        <li><a href="#remote">Remote debugging</a></li>
+        <li><a href="#cases">Case files</a></li>
+        <li><a href="#beyond">Beyond Red Hat</a></li>
+        <li><a href="#check">Knowledge check</a></li>
+        <li><a href="#lab">Lab bridge</a></li>
+        <li><a href="#cheat">Cheat sheet</a></li>
+      </ol>
+    </details>
+  </nav>
+
+<main id="main">
+  <section class="unit" id="goals" data-unit>
+    <h2><span class="n">1</span>Goals</h2>
+    <p class="prose">By the end of this week you should be able to:</p>
+    <ul class="objectives">
+      <li>Follow a consistent sequence of checks instead of guessing.</li>
+      <li>Translate common exit codes into likely causes.</li>
+      <li>Use logs, events, inspect, top and stats to see what a container is doing and how it is configured.</li>
+      <li>Tell apart port-mapping, bind-address and DNS problems by testing from inside and outside the container.</li>
+      <li>Debug containers built from minimal images that lack shells and tools.</li>
+      <li>Expose a debugger port from a container safely during development.</li>
+    </ul>
+  </section>
+
+  <section class="unit" id="method" data-unit>
+    <h2><span class="n">2</span>A troubleshooting method</h2>
+    <div class="prose">
+      <p>Experienced administrators don't start by changing things. They follow the same order every time, because each step narrows the problem and some evidence disappears once you act.</p>
+      <ol>
+        <li><strong>Observe the state.</strong> <code>podman ps -a</code>: is the container running, exited, restarting or never created? If it exited, with what code and how long after starting?</li>
+        <li><strong>Read the logs.</strong> <code>podman logs NAME</code> works even for exited containers. Most failures announce themselves here.</li>
+        <li><strong>Check the configuration.</strong> <code>podman inspect NAME</code> shows the actual command, environment, user, mounts, network and ports, not what you meant to type.</li>
+        <li><strong>Test from both sides.</strong> If a service doesn't answer, try it from inside the container with <code>podman exec</code>, then from the host. Where it stops working tells you which layer is broken.</li>
+        <li><strong>Change one thing at a time</strong>, recreate the container and check again. Changing three settings at once leaves you not knowing which one mattered.</li>
+      </ol>
+      <p>Keep the failed container until you understand it. If you started it with <code>--rm</code>, its logs vanished with it, so rerun without <code>--rm</code> while debugging.</p>
+    </div>
+  </section>
+
+  <section class="unit" id="codes" data-unit>
+    <h2><span class="n">3</span>Reading exit codes</h2>
+    <div class="prose">
+      <p>When a container's main process ends, its exit code is the first clue. Codes from 0 to 124 come from the application itself, and their meaning is up to the app. Codes 125 to 127 come from Podman and the OCI runtime. Codes above 128 mean the process was ended by a signal: subtract 128 to get the signal number.</p>
+    </div>
+    <div class="table-wrap"><table>
+      <caption class="vh">Common container exit codes</caption>
+      <thead><tr><th scope="col">Code</th><th scope="col">Meaning</th><th scope="col">Typical cause</th></tr></thead>
+      <tbody>
+        <tr><td><code>0</code></td><td>Finished successfully</td><td>A one-off command completed, or a shell with no input exited at once.</td></tr>
+        <tr><td><code>1</code></td><td>General application error</td><td>Missing configuration, failed database connection. Read the logs.</td></tr>
+        <tr><td><code>125</code></td><td>Podman itself failed</td><td>Bad option, name already in use, port already taken.</td></tr>
+        <tr><td><code>126</code></td><td>Command can't be executed</td><td>File isn't executable, or permission denied on it.</td></tr>
+        <tr><td><code>127</code></td><td>Command not found</td><td>Typo in CMD or ENTRYPOINT, or the program isn't installed in the image.</td></tr>
+        <tr><td><code>137</code></td><td>Killed by SIGKILL (9)</td><td>Out of memory, <code>podman kill</code>, or <code>podman stop</code> timed out.</td></tr>
+        <tr><td><code>139</code></td><td>Segmentation fault (11)</td><td>The program crashed, often a binary built for the wrong platform or library.</td></tr>
+        <tr><td><code>143</code></td><td>Ended by SIGTERM (15)</td><td>A normal <code>podman stop</code> of an app that doesn't trap the signal.</td></tr>
+      </tbody>
+    </table></div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman inspect --format '{{.State.ExitCode}} {{.State.OOMKilled}} {{.State.Error}}' NAME</span></pre>
+    <p class="hint">For 137, check <code class="inline-code">.State.OOMKilled</code>. True means the memory limit killed it; false means something sent the signal.</p>
+  </section>
+
+  <section class="unit" id="logs" data-unit>
+    <h2><span class="n">4</span>Logs and events</h2>
+    <div class="prose">
+      <p>Podman captures standard output and standard error of the main process. On RHEL, rootless containers log to the systemd journal by default, so the logs survive until you remove the container.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman logs --tail 50 web</span>
+<span class="p">$ </span><span class="c">podman logs -t --since 10m web</span>      <span class="o"># with timestamps, last 10 minutes</span>
+<span class="p">$ </span><span class="c">podman logs -f web</span>                  <span class="o"># follow live; Ctrl+C to stop</span></pre>
+    <div class="prose">
+      <p>If an app writes to a log file inside the container instead of standard output, <code>podman logs</code> shows nothing useful. Read the file with <code>podman exec web cat /path/to/log</code>, or copy it out with <code>podman cp</code>.</p>
+      <h3>Events</h3>
+      <p><code>podman events</code> records what happened <em>to</em> containers: created, started, died, removed, health status changes. It answers questions logs can't, such as "did this container restart three times overnight?"</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman events --since 1h --filter container=web</span>
+<span class="o">2026-10-08 09:41:02 container start 8d2f6c1e9b0a (image=…/httpd-24:latest, name=web)
+2026-10-08 09:52:17 container died 8d2f6c1e9b0a (image=…/httpd-24:latest, name=web, containerExitCode=137)</span></pre>
+  </section>
+
+  <section class="unit" id="live" data-unit>
+    <h2><span class="n">5</span>Looking at a live container</h2>
+    <div class="prose">
+      <p>For a container that's running but behaving oddly, a few commands show what's going on without changing anything:</p>
+      <ul>
+        <li><code>podman top web</code> lists the processes inside, with the user each runs as. Useful to confirm the app is actually running and as which UID.</li>
+        <li><code>podman stats --no-stream</code> shows CPU, memory, network and disk use per container. A memory figure creeping toward the limit predicts an OOM kill.</li>
+        <li><code>podman inspect web</code> shows configuration. Narrow it with <code>--format</code>: <code>{{.Config.Cmd}}</code>, <code>{{.Config.Env}}</code>, <code>{{.Config.User}}</code>, <code>{{.Mounts}}</code>, <code>{{.NetworkSettings.Networks}}</code>.</li>
+        <li><code>podman exec -it web /bin/bash</code> lets you look around: read config files, check environment variables, test connections.</li>
+      </ul>
+      <h3>Health checks</h3>
+      <p>A container can be <em>running</em> without being <em>healthy</em>. Podman can run a check command on a schedule and record the result, which shows up in <code>podman ps</code>:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d --name web -p 8080:8080 \
+    --health-cmd 'curl -fs http://localhost:8080/ || exit 1' --health-interval 30s \
+    registry.access.redhat.com/ubi9/httpd-24</span>
+<span class="p">$ </span><span class="c">podman healthcheck run web</span>   <span class="o"># run the check now; exit 0 means healthy</span></pre>
+    <p class="hint">OpenShift takes this idea much further with readiness and liveness probes, which you'll configure in Week 14.</p>
+  </section>
+
+  <section class="unit" id="netchk" data-unit>
+    <h2><span class="n">6</span>Network checks</h2>
+    <div class="prose">
+      <p>"I can't reach it" is the most common complaint, and it has several distinct causes. Test in this order:</p>
+      <ol>
+        <li><strong>Inside the container:</strong> <code>podman exec web curl -s localhost:8080</code>. If this fails, the app isn't listening, or is listening on a different port. Check the logs.</li>
+        <li><strong>The mapping:</strong> <code>podman port web</code>. Is the host port mapped to the port the app actually uses? <code>-p 8080:80</code> sends traffic to port 80, where nothing is listening.</li>
+        <li><strong>From the host:</strong> <code>curl localhost:8080</code>. If it works inside but resets from the host, the app is probably listening only on <code>127.0.0.1</code> inside its own network namespace. Configure it to listen on <code>0.0.0.0</code>.</li>
+        <li><strong>From another container:</strong> names resolve only on user-defined networks (Week 2). Check <code>podman inspect --format '{{.NetworkSettings.Networks}}'</code> for both containers.</li>
+        <li><strong>From another machine:</strong> the host firewall must allow the port, for example <code>sudo firewall-cmd --add-port=8080/tcp</code>.</li>
+      </ol>
+    </div>
+    <div class="callout exam"><span class="label">Exam habit</span>
+      <p>"Works inside, not outside" points to the port mapping or the bind address. "Fails inside too" points to the application. Decide which before changing anything.</p></div>
+  </section>
+
+  <section class="unit" id="notools" data-unit>
+    <h2><span class="n">7</span>When the image has no tools</h2>
+    <div class="prose">
+      <p>Good production images are minimal, which means <code>curl</code>, <code>ps</code> and sometimes even a shell are missing. You still have options:</p>
+      <ul>
+        <li><strong>Borrow a namespace.</strong> Start a toolbox container that joins the broken container's network: <code>podman run -it --rm --network container:web registry.access.redhat.com/ubi9/ubi bash</code>. Inside, <code>localhost</code> is the broken container's localhost.</li>
+        <li><strong>Copy files out.</strong> <code>podman cp web:/etc/app/config.yaml .</code> needs nothing inside the container.</li>
+        <li><strong>Explore the image, not the container.</strong> <code>podman run -it --rm --entrypoint /bin/sh IMAGE</code> skips the failing app so you can look at the files it would have used.</li>
+        <li><strong>Keep a crashing container alive.</strong> <code>podman run -d --name dbg --entrypoint sleep IMAGE infinity</code>, then <code>podman exec</code> in and start the app by hand to watch it fail.</li>
+        <li><strong>Mount the filesystem.</strong> <code>podman unshare podman mount web</code> prints a host path where you can browse the container's files with host tools.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="unit" id="remote" data-unit>
+    <h2><span class="n">8</span>Remote debugging</h2>
+    <div class="prose">
+      <p>Sometimes logs aren't enough and you want to step through code. Most language runtimes can open a debugger port that an IDE attaches to over the network. Inside a container that works the same way, with one extra step: publish the debugger port.</p>
+    </div>
+    <pre class="cmd"><span class="o"># Node.js: start the app with the inspector listening on all interfaces</span>
+<span class="p">$ </span><span class="c">podman run -d --name api -p 3000:3000 -p 9229:9229 \
+    myapi:dev node --inspect=0.0.0.0:9229 server.js</span>
+<span class="o"># Python: the debugpy module listens for an IDE on port 5678</span>
+<span class="p">$ </span><span class="c">podman run -d --name api -p 8000:8000 -p 5678:5678 \
+    myapi:dev python3 -m debugpy --listen 0.0.0.0:5678 app.py</span></pre>
+    <div class="prose">
+      <p>Point your IDE's "attach to remote" configuration at <code>localhost</code> and the debugger port, and map the container's source path to your local source folder so breakpoints line up. A bind mount of your source directory makes the edit and debug loop fast.</p>
+    </div>
+    <div class="callout warn"><span class="label">Development only</span>
+      <p>A debugger port allows anyone who can reach it to run code inside your app. Never publish one on a shared or production host, and build production images without debugger tooling.</p></div>
+  </section>
+
+  <section class="unit" id="cases" data-unit>
+    <h2><span class="n">9</span>Case files</h2>
+    <p class="prose">Eight broken containers. For each one, read the symptom, run as few checks as you need, then pick a diagnosis. Try to solve each case before reading its last probe; the counter tracks how many checks you used.</p>
+    <div class="lab-frame">
+      <div class="cases-bar" id="case-bar" role="group" aria-label="Choose a case"></div>
+      <div class="case" id="case"></div>
+      <p class="case-score" id="case-score" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section class="unit beyond" id="beyond" data-unit>
+    <h2><span class="n">10</span>Beyond Red Hat</h2>
+    <p class="eco-tag">Troubleshooting elsewhere</p>
+    <div class="prose">
+      <h3>Docker</h3>
+      <p><code>docker logs</code>, <code>inspect</code>, <code>stats</code>, <code>events</code>, <code>top</code> and <code>exec</code> behave like their Podman twins, and the exit codes mean the same things. Docker Desktop adds a <code>docker debug</code> command that opens a toolbox shell in any container, even a minimal one. A popular community image, <code>docker.io/nicolaka/netshoot</code>, packs dozens of network tools for the "borrow a namespace" technique.</p>
+      <h3>Kubernetes preview</h3>
+      <p>The method from section 2 carries over directly; only the commands change:</p>
+    </div>
+    <div class="table-wrap"><table>
+      <caption class="vh">Podman troubleshooting commands and their Kubernetes equivalents</caption>
+      <thead><tr><th scope="col">Podman</th><th scope="col">Kubernetes (kubectl or oc)</th><th scope="col">Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>podman ps -a</code></td><td><code>kubectl get pods</code></td><td>Look for <code>CrashLoopBackOff</code>: the container keeps exiting and Kubernetes keeps restarting it, with growing delays.</td></tr>
+        <tr><td><code>podman logs</code></td><td><code>kubectl logs POD --previous</code></td><td><code>--previous</code> shows the crashed instance, which is usually what you need.</td></tr>
+        <tr><td><code>podman inspect</code>, <code>podman events</code></td><td><code>kubectl describe pod POD</code></td><td>Shows exit codes, reasons such as <code>OOMKilled</code>, and recent events.</td></tr>
+        <tr><td><code>podman exec</code></td><td><code>kubectl exec -it POD -- bash</code></td><td></td></tr>
+        <tr><td><code>--network container:NAME</code> toolbox</td><td><code>kubectl debug -it POD --image=…</code></td><td>Adds a temporary debugging container to a running pod.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="prose">
+      <h3>Observability at scale</h3>
+      <p>With hundreds of containers you can't read logs one at a time. Production platforms collect metrics with <strong>Prometheus</strong> and chart them in <strong>Grafana</strong>, gather logs centrally with tools such as <strong>Loki</strong>, Elasticsearch or OpenSearch, and trace requests across services with <strong>OpenTelemetry</strong>. OpenShift ships with a Prometheus-based monitoring stack built in.</p>
+    </div>
+  </section>
+
+  <section class="unit" id="check" data-unit>
+    <h2><span class="n">11</span>Knowledge check</h2>
+    <p class="hint">Eight questions, answer order shuffled each time. Practice only; not graded.</p>
+    <div id="quiz"></div>
+  </section>
+
+  <section class="unit" id="lab" data-unit>
+    <h2><span class="n">12</span>Lab bridge</h2>
+    <div class="bridge">
+      <h3>Your graded lab: DO188 Chapter 6 in the OLE</h3>
+      <p class="prose">Complete the Chapter 6 guided exercises, then the end-of-chapter lab. It is graded on completion and correctness.</p>
+      <p class="prose"><strong>Before you start</strong></p>
+      <ul class="checklist">
+        <li><input type="checkbox" id="b1" data-check="b1"><label for="b1">I solved all eight case files.</label></li>
+        <li><input type="checkbox" id="b2" data-check="b2"><label for="b2">I can say what exit codes 1, 127 and 137 usually mean.</label></li>
+        <li><input type="checkbox" id="b3" data-check="b3"><label for="b3">I know how to tell a port-mapping problem from a bind-address problem.</label></li>
+        <li><input type="checkbox" id="b4" data-check="b4"><label for="b4">I read the lab instructions all the way through before typing anything.</label></li>
+      </ul>
+      <p class="prose"><strong>Watch for these during the lab</strong></p>
+      <ul>
+        <li>Troubleshooting labs usually hand you something broken on purpose. Gather evidence first (state, logs, inspect) before you change anything.</li>
+        <li>Fix the cause the lab is testing, not just the symptom. Recreating a container that will fail the same way doesn't count.</li>
+        <li>After fixing, verify the way a user would: from the host, with the published port.</li>
+        <li>Remote debugging steps may require a specific IDE or port. Follow the lab's values exactly.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="unit" id="cheat" data-unit>
+    <h2><span class="n">13</span>Cheat sheet</h2>
+    <div class="table-wrap"><table>
+      <caption class="vh">Troubleshooting command reference</caption>
+      <thead><tr><th scope="col">Question</th><th scope="col">Command</th></tr></thead>
+      <tbody>
+        <tr><td>What state is it in?</td><td><code>podman ps -a</code></td></tr>
+        <tr><td>Why did it exit?</td><td><code>podman inspect --format '{{.State.ExitCode}} {{.State.OOMKilled}}' NAME</code></td></tr>
+        <tr><td>What did it say?</td><td><code>podman logs [--tail N] [-t] [--since 10m] NAME</code></td></tr>
+        <tr><td>What happened to it over time?</td><td><code>podman events --since 1h --filter container=NAME</code></td></tr>
+        <tr><td>What is it actually configured to do?</td><td><code>podman inspect --format '{{.Config.Cmd}} {{.Config.Env}}' NAME</code></td></tr>
+        <tr><td>What's running inside, as whom?</td><td><code>podman top NAME</code></td></tr>
+        <tr><td>How much is it using?</td><td><code>podman stats --no-stream</code></td></tr>
+        <tr><td>Which ports are mapped?</td><td><code>podman port NAME</code></td></tr>
+        <tr><td>Does it answer from inside?</td><td><code>podman exec NAME curl -s localhost:PORT</code></td></tr>
+        <tr><td>Debug with tools it lacks</td><td><code>podman run -it --rm --network container:NAME ubi9/ubi bash</code></td></tr>
+        <tr><td>Explore the image without starting the app</td><td><code>podman run -it --rm --entrypoint /bin/sh IMAGE</code></td></tr>
+        <tr><td>Is it healthy?</td><td><code>podman healthcheck run NAME</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</main>
+</div>
+
+<footer class="site-foot"><div class="inner">
+  <p>Built for <span class="program">NETW 112 Containers &amp; Orchestration</span> · Brookdale Community College · <span class="year">2026</span></p>
+  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat, Red Hat Enterprise Linux and OpenShift are trademarks of Red Hat, Inc. Case file output is simulated and abbreviated.</p>
+</div></footer>
+
+<script>/* NETW 112 shared module runtime. Inlined into every page. */
+var NETW = (function () {
+  'use strict';
+  var MOD = document.body.getAttribute('data-module') || 'hub';
+  var KEY = 'netw112:' + MOD;
+
+  function read(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || null; } catch (e) { return null; }
+  }
+  function write(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage unavailable */ }
+  }
+  var state = read(KEY) || { units: {}, checks: {}, quiz: null, total: 0 };
+  state.units = state.units || {}; state.checks = state.checks || {};
+  function save() { write(KEY, state); }
+
+  function announce(msg) {
+    var r = document.getElementById('sr-status');
+    if (!r) return;
+    r.textContent = '';
+    window.setTimeout(function () { r.textContent = msg; }, 30);
+  }
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function el(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') n.className = attrs[k]; else n.setAttribute(k, attrs[k]);
+    });
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /* ---------- copy buttons ---------- */
+  function initCopy() {
+    document.querySelectorAll('pre.cmd').forEach(function (pre) {
+      var b = el('button', { type: 'button', class: 'copy-btn' }, 'Copy');
+      b.setAttribute('aria-label', 'Copy commands');
+      b.addEventListener('click', function () {
+        var cmds = pre.querySelectorAll('.c');
+        var text = cmds.length ? Array.prototype.map.call(cmds, function (c) { return c.textContent; }).join('\n') : pre.textContent;
+        function ok() { b.textContent = 'Copied'; announce('Commands copied to clipboard'); setTimeout(function () { b.textContent = 'Copy'; }, 1600); }
+        function fallback() {
+          var ta = el('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+          var done = false; try { done = document.execCommand('copy'); } catch (e) { done = false; }
+          document.body.removeChild(ta);
+          if (done) ok(); else { b.textContent = 'Select text'; announce('Copy is blocked here. Select the text and copy it manually.'); }
+        }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
+      });
+      pre.appendChild(b);
+    });
+  }
+
+  /* ---------- units, progress, TOC ---------- */
+  var units = [];
+  function updateProgress() {
+    var done = units.filter(function (u) { return state.units[u.id]; }).length;
+    state.total = units.length; save();
+    var pct = units.length ? Math.round(done / units.length * 100) : 0;
+    var bar = document.getElementById('progress');
+    if (bar) {
+      bar.setAttribute('aria-valuenow', String(pct));
+      bar.querySelector('i').style.width = pct + '%';
+      var lbl = document.getElementById('progress-count');
+      if (lbl) lbl.textContent = done + ' of ' + units.length + ' sections';
+    }
+    document.querySelectorAll('.toc a').forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var t = a.querySelector('.tick');
+      if (state.units[id] && !t) { t = el('span', { class: 'tick' }, '✓'); t.appendChild(el('span', { class: 'vh' }, ' completed')); a.appendChild(t); }
+      if (!state.units[id] && t) a.removeChild(t);
+    });
+  }
+  function initUnits() {
+    document.querySelectorAll('section[data-unit]').forEach(function (s) {
+      units.push(s);
+      var row = el('div', { class: 'done-row' });
+      var b = el('button', { type: 'button', class: 'btn ghost done-btn' });
+      function paint() {
+        var on = !!state.units[s.id];
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.textContent = on ? 'Section complete' : 'Mark section complete';
+      }
+      b.addEventListener('click', function () {
+        state.units[s.id] = !state.units[s.id];
+        if (!state.units[s.id]) delete state.units[s.id];
+        paint(); updateProgress();
+        announce(state.units[s.id] ? 'Section marked complete' : 'Section marked not complete');
+      });
+      paint(); row.appendChild(b); s.appendChild(row);
+    });
+    updateProgress();
+    if ('IntersectionObserver' in window) {
+      var links = {};
+      document.querySelectorAll('.toc a').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting && links[e.target.id]) {
+            Object.keys(links).forEach(function (k) { links[k].removeAttribute('aria-current'); });
+            links[e.target.id].setAttribute('aria-current', 'true');
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px' });
+      units.forEach(function (u) { io.observe(u); });
+    }
+  }
+
+  /* ---------- persistent checklists ---------- */
+  function initChecks() {
+    document.querySelectorAll('input[type=checkbox][data-check]').forEach(function (c) {
+      var k = c.getAttribute('data-check');
+      c.checked = !!state.checks[k];
+      c.addEventListener('change', function () { state.checks[k] = c.checked; save(); });
+    });
+  }
+
+  /* ---------- quiz engine ---------- */
+  function quiz(root, items) {
+    var answered = {}; var correct = 0;
+    var summary = el('p', { class: 'quiz-summary', 'aria-live': 'polite' });
+    items.forEach(function (item, qi) {
+      var fs = el('fieldset', { class: 'quiz-q' });
+      var lg = el('legend'); lg.appendChild(el('span', { class: 'qn' }, String(qi + 1))); lg.appendChild(document.createTextNode(item.q));
+      fs.appendChild(lg);
+      var name = MOD + '-q' + qi;
+      var opts = item.ordered ? item.choices.slice() : shuffle(item.choices);
+      opts.forEach(function (ch, ci) {
+        var id = name + '-' + ci;
+        var lab = el('label', { class: 'choice', for: id });
+        var inp = el('input', { type: 'radio', name: name, id: id });
+        inp.value = ch.ok ? '1' : '0';
+        lab.appendChild(inp); lab.appendChild(el('span', null, ch.t));
+        fs.appendChild(lab);
+      });
+      var btn = el('button', { type: 'button', class: 'btn' }, 'Check answer');
+      var fb = el('div', { class: 'feedback', 'aria-live': 'polite' });
+      btn.addEventListener('click', function () {
+        var pick = fs.querySelector('input:checked');
+        if (!pick) { fb.className = 'feedback wrong'; fb.textContent = 'Choose an answer first.'; return; }
+        var right = pick.value === '1';
+        fs.querySelectorAll('.choice').forEach(function (c) {
+          c.classList.remove('is-right', 'is-wrong');
+          var i = c.querySelector('input');
+          if (i.value === '1') c.classList.add('is-right');
+          else if (i === pick) c.classList.add('is-wrong');
+          i.disabled = true;
+        });
+        fb.className = 'feedback ' + (right ? 'right' : 'wrong'); fb.textContent = '';
+        fb.appendChild(el('span', { class: 'verdict' }, right ? 'Correct. ' : 'Not quite. '));
+        fb.appendChild(document.createTextNode(item.why));
+        btn.disabled = true;
+        if (!answered[qi]) { answered[qi] = true; if (right) correct++; }
+        var n = Object.keys(answered).length;
+        if (n === items.length) {
+          var best = Math.max(correct, (state.quiz && state.quiz.best) || 0);
+          state.quiz = { score: correct, total: items.length, best: best }; save();
+          summary.textContent = 'You scored ' + correct + ' of ' + items.length + '. Best so far: ' + best + '. This check is practice only and is not graded.';
+          retry.hidden = false;
+        } else summary.textContent = n + ' of ' + items.length + ' answered.';
+      });
+      fs.appendChild(btn); fs.appendChild(fb); root.appendChild(fs);
+    });
+    var retry = el('button', { type: 'button', class: 'btn ghost' }, 'Try the check again');
+    retry.hidden = true;
+    retry.addEventListener('click', function () { root.textContent = ''; quiz(root, items); root.querySelector('input').focus(); });
+    root.appendChild(summary); root.appendChild(retry);
+    if (state.quiz) summary.textContent = 'Last attempt: ' + state.quiz.score + ' of ' + state.quiz.total + '. Best: ' + state.quiz.best + '.';
+  }
+
+  function init() { initCopy(); initUnits(); initChecks(); }
+
+  return { init: init, quiz: quiz, el: el, shuffle: shuffle, announce: announce, read: read, write: write, state: state, save: save };
+})();
+
+(function () {
+  'use strict';
+  NETW.init();
+  var el = NETW.el;
+  var H = 'registry.access.redhat.com/ubi9/httpd-24';
+  var CASES = [
+    { title: 'The web server never starts', symptom: 'A teammate built a custom web image. Every time it\u2019s started, it\u2019s gone a moment later and nothing answers on port 8080.',
+      setup: 'podman run -d --name shop -p 8080:8080 localhost/shop:1.0',
+      probes: [
+        ['podman ps -a', ['CONTAINER ID  IMAGE                  COMMAND          CREATED        STATUS                     PORTS                   NAMES', 'a41c9e2d7f10  localhost/shop:1.0     htppd -D FOREG…  8 seconds ago  Exited (127) 8 seconds ago  0.0.0.0:8080->8080/tcp  shop']],
+        ['podman logs shop', ['Error: crun: executable file `htppd` not found in $PATH: No such file or directory: OCI runtime attempted to invoke a command that was not found']],
+        ['podman inspect --format \'{{.Config.Cmd}}\' shop', ['[htppd -D FOREGROUND]']],
+        ['podman port shop', ['8080/tcp -> 0.0.0.0:8080']]
+      ],
+      choices: [{ t: 'The CMD has a typo, so the program can\u2019t be found', ok: true }, { t: 'Port 8080 is already in use on the host' }, { t: 'The container ran out of memory' }, { t: 'SELinux is blocking the web root' }],
+      fix: 'Exit code 127 means "command not found", and the logs and CMD show htppd instead of httpd. Fix the Containerfile (CMD ["httpd", "-D", "FOREGROUND"]) and rebuild.\n\npodman build -t shop:1.1 .\npodman run -d --name shop -p 8080:8080 localhost/shop:1.1' },
+    { title: 'The database quits immediately', symptom: 'A MariaDB container is meant to run in the background, but podman ps never shows it.',
+      setup: 'podman run -d --name db -p 3306:3306 registry.redhat.io/rhel9/mariadb-105',
+      probes: [
+        ['podman ps -a', ['CONTAINER ID  IMAGE                                      COMMAND     CREATED         STATUS                     PORTS                   NAMES', '3e8a17f0c2b4  registry.redhat.io/rhel9/mariadb-105:latest  run-mysqld  12 seconds ago  Exited (1) 11 seconds ago  0.0.0.0:3306->3306/tcp  db']],
+        ['podman logs db', ['=> sourcing 20-validate-variables.sh ...', 'You must either specify the following environment variables:', '  MYSQL_USER (regex: \'^[a-zA-Z0-9_]+$\')', '  MYSQL_PASSWORD (regex: \'^[a-zA-Z0-9_~!@#$%^&*()-=<>,.?;:|]+$\')', '  MYSQL_DATABASE (regex: \'^[a-zA-Z0-9_]+$\')', 'Or the following environment variable:', '  MYSQL_ROOT_PASSWORD (regex: \'^[a-zA-Z0-9_~!@#$%^&*()-=<>,.?;:|]+$\')']],
+        ['podman inspect --format \'{{.Config.Env}}\' db', ['[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin container=oci HOME=/var/lib/mysql …]']],
+        ['podman inspect --format \'{{.State.OOMKilled}}\' db', ['false']]
+      ],
+      choices: [{ t: 'Required environment variables weren\u2019t provided', ok: true }, { t: 'The image needs to be pulled again' }, { t: 'Port 3306 is below 1024' }, { t: 'The volume is missing an SELinux label' }],
+      fix: 'Exit code 1 is an application error, and the image\u2019s own log message lists the variables it needs.\n\npodman rm db\npodman run -d --name db -p 3306:3306 -e MYSQL_USER=user1 -e MYSQL_PASSWORD=mypa55 -e MYSQL_DATABASE=items registry.redhat.io/rhel9/mariadb-105' },
+    { title: 'Running, but nobody can reach it', symptom: 'The container shows Up in podman ps, the logs look normal, yet curl localhost:8080 from the host fails.',
+      setup: 'podman run -d --name web -p 8080:80 ' + H,
+      probes: [
+        ['podman ps', ['CONTAINER ID  IMAGE                                            COMMAND               CREATED        STATUS        PORTS                 NAMES', '77b0e1c2d3a4  ' + H + ':latest  /usr/bin/run-http...  2 minutes ago  Up 2 minutes  0.0.0.0:8080->80/tcp  web']],
+        ['podman logs web', ['…', '[core:notice] [pid 1:tid 1] AH00094: Command line: \'httpd -D FOREGROUND\'']],
+        ['curl localhost:8080   (from the host)', ['curl: (56) Recv failure: Connection reset by peer']],
+        ['podman exec web curl -s localhost:8080', ['<!doctype html>', '<html><head><title>Test Page for the HTTP Server on Red Hat Enterprise Linux</title> …']],
+        ['podman port web', ['80/tcp -> 0.0.0.0:8080']]
+      ],
+      choices: [{ t: 'The port mapping sends traffic to container port 80, but httpd listens on 8080', ok: true }, { t: 'httpd crashed after starting' }, { t: 'The host firewall blocks port 8080' }, { t: 'The container needs to run as root' }],
+      fix: 'The app works inside the container, so it\u2019s healthy. The mapping is wrong: this image listens on 8080, not 80.\n\npodman rm -f web\npodman run -d --name web -p 8080:8080 ' + H },
+    { title: 'Works inside, resets outside', symptom: 'A Node.js API answers when you exec into the container, but connections from the host are reset. The port mapping is 3000:3000, matching the app.',
+      setup: 'podman run -d --name api -p 3000:3000 localhost/api:1.0',
+      probes: [
+        ['podman port api', ['3000/tcp -> 0.0.0.0:3000']],
+        ['podman logs api', ['> api@1.0.0 start', '> node server.js', 'Server listening on http://127.0.0.1:3000']],
+        ['curl localhost:3000   (from the host)', ['curl: (56) Recv failure: Connection reset by peer']],
+        ['podman exec api curl -s localhost:3000/health', ['{"status":"ok"}']],
+        ['podman inspect --format \'{{.Config.Env}}\' api', ['[PATH=… NODE_ENV=production HOST=127.0.0.1 PORT=3000]']]
+      ],
+      choices: [{ t: 'The app listens only on 127.0.0.1 inside its own network namespace', ok: true }, { t: 'The mapping should be 3000:8080' }, { t: 'Node.js images can\u2019t run rootless' }, { t: 'DNS is disabled on the default network' }],
+      fix: 'Inside a container, 127.0.0.1 is the container\u2019s own loopback. Published traffic arrives on the container\u2019s network interface, which the app ignores. Make it listen on all interfaces.\n\npodman rm -f api\npodman run -d --name api -p 3000:3000 -e HOST=0.0.0.0 localhost/api:1.0' },
+    { title: 'It dies when it gets busy', symptom: 'A report generator runs fine on small inputs. On the big monthly file it stops partway through with no error in its own log.',
+      setup: 'podman run --name report --memory 64m -v ./input:/input:Z localhost/report:2.3 /input/monthly.csv',
+      probes: [
+        ['podman ps -a', ['CONTAINER ID  IMAGE                   COMMAND               CREATED        STATUS                      PORTS  NAMES', 'c19ba0d4e5f2  localhost/report:2.3    /input/monthly.csv    3 minutes ago  Exited (137) 2 minutes ago         report']],
+        ['podman logs --tail 3 report', ['Loaded 182,000 rows', 'Aggregating by region...', 'Aggregating by product...']],
+        ['podman inspect --format \'{{.State.ExitCode}} {{.State.OOMKilled}}\' report', ['137 true']],
+        ['podman inspect --format \'{{.HostConfig.Memory}}\' report', ['67108864']]
+      ],
+      choices: [{ t: 'The 64 MiB memory limit triggered the out-of-memory killer', ok: true }, { t: 'The input file is missing an SELinux label' }, { t: 'Someone ran podman stop on it' }, { t: 'The CMD uses the shell form' }],
+      fix: 'Exit 137 is SIGKILL, and OOMKilled true says the kernel did it because of the cgroup limit. Raise the limit to fit the workload (or fix the app\u2019s memory use).\n\npodman rm report\npodman run --name report --memory 512m -v ./input:/input:Z localhost/report:2.3 /input/monthly.csv' },
+    { title: '403 after adding content', symptom: 'You mounted your website folder into httpd. The container runs, but every page returns 403 Forbidden. The files are world-readable.',
+      setup: 'podman run -d --name site -p 8081:8080 -v ./site:/var/www/html ' + H,
+      probes: [
+        ['curl -I localhost:8081', ['HTTP/1.1 403 Forbidden', 'Server: Apache/2.4.57 (Red Hat Enterprise Linux)']],
+        ['podman logs --tail 2 site', ['[core:error] [pid 28:tid 28] (13)Permission denied: [client 10.88.0.1] AH00035: access to /index.html denied because search permissions are missing on a component of the path']],
+        ['podman inspect --format \'{{.Mounts}}\' site', ['[{bind /home/student/site /var/www/html rw}]']],
+        ['ls -ldZ site', ['drwxr-xr-x. 2 student student unconfined_u:object_r:user_home_t:s0  40 Oct  8 10:02 site']]
+      ],
+      choices: [{ t: 'The bind mount still has the user_home_t SELinux label', ok: true }, { t: 'httpd needs to run as root to read files' }, { t: 'The index.html file is empty' }, { t: 'Port 8081 isn\u2019t allowed for rootless containers' }],
+      fix: 'Permission denied despite open file modes, plus a user_home_t label, is SELinux. Let Podman relabel the directory.\n\npodman rm -f site\npodman run -d --name site -p 8081:8080 -v ./site:/var/www/html:Z ' + H },
+    { title: 'The app can\u2019t find the database', symptom: 'An app container and a database container are both running. The app\u2019s logs complain it can\u2019t connect to the host named db.',
+      setup: 'podman run -d --name db -e MYSQL_USER=… registry.redhat.io/rhel9/mariadb-105\npodman run -d --name app -p 8080:8080 -e DB_HOST=db localhost/app:1.0',
+      probes: [
+        ['podman ps', ['… mariadb-105  Up 4 minutes  db', '… app:1.0      Up 4 minutes  0.0.0.0:8080->8080/tcp  app']],
+        ['podman logs --tail 2 app', ['Connecting to database at db:3306 ...', 'ERROR 2005 (HY000): Unknown MySQL server host \'db\' (-2)']],
+        ['podman inspect --format \'{{.HostConfig.NetworkMode}}\' app db', ['bridge', 'bridge']],
+        ['podman network ls', ['NETWORK ID    NAME        DRIVER', '2f259bab93aa  podman      bridge']]
+      ],
+      choices: [{ t: 'Both containers are on the default network, which has no DNS for container names', ok: true }, { t: 'The database password is wrong' }, { t: 'The database port isn\u2019t published with -p' }, { t: 'The app container ran out of memory' }],
+      fix: '"Unknown host" is a name-resolution failure, not a login or port problem. Put both containers on a user-defined network.\n\npodman network create app-net\npodman rm -f app db\npodman run -d --name db --network app-net -e MYSQL_USER=… registry.redhat.io/rhel9/mariadb-105\npodman run -d --name app --network app-net -p 8080:8080 -e DB_HOST=db localhost/app:1.0' },
+    { title: 'Stopping takes ten seconds', symptom: 'Every podman stop on this Python service hangs for exactly ten seconds, and the container then shows exit code 137. The app is supposed to save its state on shutdown, but it never does.',
+      setup: 'podman stop worker',
+      probes: [
+        ['time podman stop worker', ['WARN[0010] StopSignal SIGTERM failed to stop container worker in 10 seconds, resorting to SIGKILL', 'worker', '', 'real    0m10.214s']],
+        ['podman ps -a', ['… localhost/worker:1.4  /bin/sh -c python…  1 hour ago  Exited (137) 3 seconds ago  worker']],
+        ['podman inspect --format \'{{.Config.Cmd}}\' worker', ['[/bin/sh -c python3 worker.py]']],
+        ['podman top worker   (before stopping)', ['USER  PID  PPID  %CPU  ELAPSED  TTY  TIME  COMMAND', '1001  1    0     0.0   1h0m     ?    0s    /bin/sh -c python3 worker.py', '1001  2    1     1.2   1h0m     ?    44s   python3 worker.py']]
+      ],
+      choices: [{ t: 'The shell-form CMD makes /bin/sh PID 1, and it doesn\u2019t pass SIGTERM to Python', ok: true }, { t: 'The memory limit is too low' }, { t: 'podman stop always takes ten seconds' }, { t: 'The worker needs a health check' }],
+      fix: 'top shows /bin/sh as PID 1 with Python as its child. SIGTERM goes to the shell, which ignores it, so Podman waits 10 seconds and sends SIGKILL. Use the exec form so Python is PID 1 and receives the signal.\n\n# Containerfile\nCMD ["python3", "worker.py"]' }
+  ];
+  var st = NETW.state.cases = NETW.state.cases || {};
+  var bar = document.getElementById('case-bar'), box = document.getElementById('case'), score = document.getElementById('case-score');
+  var current = 0;
+  function paintScore() {
+    var solved = CASES.filter(function (c, i) { return st['c' + i] && st['c' + i].solved; }).length;
+    var probes = CASES.reduce(function (n, c, i) { return n + (st['c' + i] && st['c' + i].solved ? st['c' + i].probes : 0); }, 0);
+    score.textContent = solved + ' of ' + CASES.length + ' cases solved' + (solved ? ', using ' + probes + ' checks in total.' : '.') + (solved === CASES.length ? ' Case files closed.' : '');
+    bar.querySelectorAll('button').forEach(function (b, i) { b.classList.toggle('solved', !!(st['c' + i] && st['c' + i].solved)); });
+  }
+  CASES.forEach(function (c, i) {
+    var b = el('button', { type: 'button', 'aria-pressed': i === 0 ? 'true' : 'false', 'aria-label': 'Case ' + (i + 1) + ': ' + c.title }, String(i + 1));
+    b.addEventListener('click', function () { current = i; bar.querySelectorAll('button').forEach(function (x, j) { x.setAttribute('aria-pressed', j === i ? 'true' : 'false'); }); show(i); box.querySelector('h3').focus(); });
+    bar.appendChild(b);
+  });
+  function show(i) {
+    var c = CASES[i], rec = st['c' + i] = st['c' + i] || { probes: 0, used: {}, solved: false };
+    box.textContent = '';
+    var h = el('h3', { tabindex: '-1' }, 'Case ' + (i + 1) + ': ' + c.title); box.appendChild(h);
+    box.appendChild(el('p', { class: 'symptom' }, c.symptom));
+    box.appendChild(el('p', { class: 'hint' }, 'How it was started:'));
+    box.appendChild(el('div', { class: 'setup' }, '$ ' + c.setup.split('\n').join('\n$ ')));
+    var pr = el('div', { class: 'probes', role: 'group', 'aria-label': 'Checks you can run' });
+    var out = el('pre', { class: 'probe-out', 'aria-live': 'polite', 'aria-label': 'Check output' }, 'Choose a check to run.');
+    c.probes.forEach(function (p, j) {
+      var pb = el('button', { type: 'button', 'aria-pressed': rec.used[j] ? 'true' : 'false' }, p[0]);
+      pb.addEventListener('click', function () {
+        if (!rec.used[j] && !rec.solved) { rec.used[j] = true; rec.probes++; NETW.save(); }
+        pb.setAttribute('aria-pressed', 'true');
+        out.textContent = ''; out.appendChild(el('span', { class: 'p' }, '$ ' + p[0].replace(/\s+\(.*\)$/, '') + '\n')); out.appendChild(document.createTextNode(p[1].join('\n')));
+      });
+      pr.appendChild(pb);
+    });
+    box.appendChild(pr); box.appendChild(out);
+    var d = el('div', { class: 'diag' }), fs = el('fieldset'); fs.appendChild(el('legend', null, 'Your diagnosis'));
+    var name = 'case' + i;
+    NETW.shuffle(c.choices).forEach(function (ch, k) {
+      var id = name + '-' + k, lab = el('label', { class: 'choice', for: id }), inp = el('input', { type: 'radio', name: name, id: id });
+      inp.value = ch.ok ? '1' : '0'; lab.appendChild(inp); lab.appendChild(el('span', null, ch.t)); fs.appendChild(lab);
+    });
+    var go = el('button', { type: 'button', class: 'btn' }, 'Submit diagnosis'), fb = el('div', { class: 'feedback', 'aria-live': 'polite' });
+    go.addEventListener('click', function () {
+      var pick = fs.querySelector('input:checked');
+      if (!pick) { fb.className = 'feedback wrong'; fb.textContent = 'Choose a diagnosis first.'; return; }
+      if (pick.value === '1') {
+        rec.solved = true; NETW.save(); fb.className = 'feedback right'; fb.textContent = '';
+        fb.appendChild(el('span', { class: 'verdict' }, 'Solved. ')); fb.appendChild(document.createTextNode('You used ' + rec.probes + ' of ' + c.probes.length + ' checks.'));
+        showFix(); paintScore();
+      } else { fb.className = 'feedback wrong'; fb.textContent = ''; fb.appendChild(el('span', { class: 'verdict' }, 'Not this one. ')); fb.appendChild(document.createTextNode('The evidence doesn\u2019t support it. Run another check, or reread the outputs.')); }
+    });
+    function showFix() { if (d.querySelector('.fix')) return; var f = el('div', { class: 'fix' }); f.appendChild(el('strong', null, 'Explanation and fix')); f.appendChild(el('pre', null, c.fix)); d.appendChild(f); }
+    fs.appendChild(go); fs.appendChild(fb); d.appendChild(fs); box.appendChild(d);
+    if (rec.solved) showFix();
+  }
+  show(0); paintScore();
+
+  NETW.quiz(document.getElementById('quiz'), [
+    { q: 'A container shows Exited (127) seconds after starting. What should you suspect first?',
+      choices: [{ t: 'The command in CMD or ENTRYPOINT doesn\u2019t exist in the image', ok: true }, { t: 'It ran out of memory' }, { t: 'A port conflict on the host' }, { t: 'A successful one-off task' }],
+      why: '127 is "command not found" from the runtime. Check the logs and podman inspect --format \'{{.Config.Cmd}}\'.' },
+    { q: 'A container exited with 137. Which single check best tells you whether the memory limit caused it?',
+      choices: [{ t: 'podman inspect --format \'{{.State.OOMKilled}}\' NAME', ok: true }, { t: 'podman port NAME' }, { t: 'podman images' }, { t: 'podman network ls' }],
+      why: '137 means SIGKILL. OOMKilled true means the kernel killed it for exceeding its memory limit; false means podman kill, a stop timeout or something else.' },
+    { q: 'An app answers inside its container but connections from the host are reset, and podman port shows the correct mapping. What is likely wrong?',
+      choices: [{ t: 'The app is listening on 127.0.0.1 instead of 0.0.0.0', ok: true }, { t: 'The image is missing curl' }, { t: 'SELinux is blocking the port' }, { t: 'The container has no health check' }],
+      why: 'Loopback inside a container is private to that container. Published traffic arrives on its network interface, so the app must listen on all interfaces.' },
+    { q: 'You started a failing container with --rm, and now there are no logs to read. What should you do?',
+      choices: [{ t: 'Run it again without --rm so the container and its logs remain after it exits', ok: true }, { t: 'Run podman logs --rm' }, { t: 'Check podman images for the logs' }, { t: 'Increase the memory limit' }],
+      why: '--rm deletes the container, and its logs, as soon as it exits. Keep failed containers around while debugging.' },
+    { q: 'Your production image has no shell and no curl. How can you test its network from the inside?',
+      choices: [{ t: 'Run a toolbox container with --network container:NAME', ok: true }, { t: 'podman exec NAME curl anyway; Podman supplies curl' }, { t: 'Rebuild the image with debugging tools for production' }, { t: 'You can\u2019t; minimal images can\u2019t be debugged' }],
+      why: 'Joining the broken container\u2019s network namespace gives you its view of the network, with your own tools.' },
+    { q: 'What does podman events show that podman logs doesn\u2019t?',
+      choices: [{ t: 'Lifecycle events such as start, die and remove, with exit codes and times', ok: true }, { t: 'The application\u2019s standard output' }, { t: 'The image layers' }, { t: 'The contents of the container\u2019s files' }],
+      why: 'Logs are what the app printed. Events are what happened to the container, such as repeated restarts overnight.' },
+    { q: 'Why does a container whose CMD is in shell form often take ten seconds to stop?',
+      choices: [{ t: 'The shell is PID 1 and doesn\u2019t forward SIGTERM, so Podman waits, then sends SIGKILL', ok: true }, { t: 'Shell form adds a ten-second sleep' }, { t: 'Podman always waits ten seconds before stopping any container' }, { t: 'The health check delays shutdown' }],
+      why: 'Use the exec form so your app is PID 1 and receives SIGTERM directly.' },
+    { q: 'When remote debugging a containerized app, what must you add to podman run?',
+      choices: [{ t: 'A published port for the debugger, with the debugger listening on 0.0.0.0', ok: true }, { t: '--privileged' }, { t: '--network host, always' }, { t: 'A named volume for the debugger' }],
+      why: 'The IDE connects over the network, so the debugger port must be published and reachable. Never do this on shared or production systems.' }
+  ]);
+})();
+</script>
+</body>
+</html>

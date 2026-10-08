@@ -165,6 +165,9 @@ td code{font-family:var(--mono);font-size:.86rem}
 .site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
 .site-foot p{margin:0 0 var(--s2);max-width:80ch}
 @media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+/* beyond red hat */
+.unit.beyond>h2::after{content:"";flex:1;height:2px;margin-left:var(--s3);align-self:center;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
+.eco-tag{display:inline-block;font:600 .78rem var(--sans);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.1rem .55rem;margin-bottom:var(--s3)}
 
 /* week 1 interactives */
 .stack-grid{display:grid;grid-template-columns:1fr;gap:var(--s5)}
@@ -237,6 +240,7 @@ td code{font-family:var(--mono);font-size:.86rem}
         <li><a href="#images">Images, containers and registries</a></li>
         <li><a href="#tools">Podman, Buildah and Skopeo</a></li>
         <li><a href="#orch">Beyond one host</a></li>
+        <li><a href="#beyond">Beyond Red Hat</a></li>
         <li><a href="#check">Knowledge check</a></li>
         <li><a href="#ready">Get your lab ready</a></li>
       </ol>
@@ -437,14 +441,48 @@ td code{font-family:var(--mono);font-size:.86rem}
     </div>
   </section>
 
+  <section class="unit beyond" id="beyond" data-unit>
+    <h2><span class="n">8</span>Beyond Red Hat</h2>
+    <p class="eco-tag">The wider container world</p>
+    <div class="prose">
+      <p>This course uses Red Hat's tools because they're what the certifications test, but job postings will just as often ask for Docker and Kubernetes. The good news: because everything follows the OCI standards, the concepts you learn here transfer almost one for one. Here is who's who.</p>
+    </div>
+    <h3>Container engines and runtimes</h3>
+    <div class="table-wrap"><table>
+      <caption class="vh">Container engines and runtimes outside Red Hat</caption>
+      <thead><tr><th scope="col">Tool</th><th scope="col">What it is</th><th scope="col">Compared with Podman</th></tr></thead>
+      <tbody>
+        <tr><td>Docker Engine</td><td>The engine that made containers popular. A background daemon, <code>dockerd</code>, does the work; the <code>docker</code> CLI sends it requests.</td><td>Same images and nearly identical commands. Uses a root daemon by default; a rootless mode exists but is optional.</td></tr>
+        <tr><td>Docker Desktop</td><td>An app for macOS and Windows that runs Docker inside a small Linux virtual machine, since containers need a Linux kernel.</td><td>Podman Desktop is the open source equivalent. Docker Desktop requires a paid subscription for commercial use in larger organizations.</td></tr>
+        <tr><td>containerd</td><td>A CNCF runtime daemon that manages images and containers. Docker uses it internally, and so do many Kubernetes clusters.</td><td>Lower level; usually driven by Docker or Kubernetes rather than by people.</td></tr>
+        <tr><td>CRI-O</td><td>A lightweight runtime built only to serve Kubernetes.</td><td>Shares libraries with Podman. It's the runtime inside OpenShift, so the images you build now run there unchanged.</td></tr>
+        <tr><td>runc and crun</td><td>Low-level OCI runtimes that actually create the namespaces and cgroups.</td><td>Podman uses them too; you rarely call them directly.</td></tr>
+        <tr><td>LXC and Incus</td><td><em>System</em> containers that boot a full init system, more like lightweight VMs.</td><td>A different model from Podman's one-app-per-container approach.</td></tr>
+        <tr><td>Windows containers</td><td>Containers that share a Windows kernel instead of a Linux one.</td><td>Run Windows images only, on Windows hosts.</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Orchestrators</h3>
+    <div class="prose">
+      <p><strong>Kubernetes</strong> is the open source project, governed by the Cloud Native Computing Foundation (CNCF). Most people run a <em>distribution</em> or a managed service rather than assembling it themselves:</p>
+      <ul>
+        <li><strong>Managed cloud services:</strong> Amazon EKS, Azure AKS and Google GKE. Red Hat OpenShift is also offered as a managed service on the big clouds (ROSA on AWS, ARO on Azure).</li>
+        <li><strong>Distributions you install:</strong> Red Hat OpenShift, SUSE Rancher (RKE2), and the lightweight k3s for edge devices.</li>
+        <li><strong>Local learning clusters:</strong> minikube, kind (Kubernetes in Docker or Podman) and OpenShift Local.</li>
+      </ul>
+      <p>Other orchestrators exist, such as Docker Swarm and HashiCorp Nomad, but Kubernetes is the industry standard, and it's what Weeks 8 to 15 teach.</p>
+    </div>
+    <div class="callout exam"><span class="label">Exam versus job market</span>
+      <p>Red Hat's EX188 and EX280 exams test Podman and OpenShift specifically. On your resume, list the underlying skills too: "OCI containers (Podman, Docker)" and "Kubernetes (OpenShift)".</p></div>
+  </section>
+
   <section class="unit" id="check" data-unit>
-    <h2><span class="n">8</span>Knowledge check</h2>
+    <h2><span class="n">9</span>Knowledge check</h2>
     <p class="hint">Eight questions, answer order shuffled each time. This check is practice and does not count toward your grade.</p>
     <div id="quiz"></div>
   </section>
 
   <section class="unit" id="ready" data-unit>
-    <h2><span class="n">9</span>Get your lab ready</h2>
+    <h2><span class="n">10</span>Get your lab ready</h2>
     <div class="bridge">
       <h3>No graded lab this week. Use the time to set up.</h3>
       <p class="prose">Week 2 starts the graded labs. Make sure every item below works now, so an access problem doesn't cost you points later. The syllabus is clear that environment issues must be reported right away, not after a due date.</p>

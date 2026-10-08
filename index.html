@@ -165,6 +165,9 @@ td code{font-family:var(--mono);font-size:.86rem}
 .site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
 .site-foot p{margin:0 0 var(--s2);max-width:80ch}
 @media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+/* beyond red hat */
+.unit.beyond>h2::after{content:"";flex:1;height:2px;margin-left:var(--s3);align-self:center;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
+.eco-tag{display:inline-block;font:600 .78rem var(--sans);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.1rem .55rem;margin-bottom:var(--s3)}
 
 .hero{max-width:76rem;margin:0 auto;padding:var(--s6) var(--s4) var(--s5)}
 .hero .code{font-family:var(--mono);color:var(--accent);margin:0}
@@ -236,7 +239,7 @@ div.box .wk{color:var(--muted)}
 <header>
   <div class="topbar"><div class="topbar-inner">
     <span class="brand"><span class="brand-code">NETW 112</span> Brookdale Community College</span>
-    <nav class="weeknav" aria-label="Page sections"><a href="#weeks">Weeks</a><a href="#outcomes">Outcomes</a><a href="#glossary">Glossary</a></nav>
+    <nav class="weeknav" aria-label="Page sections"><a href="#weeks">Weeks</a><a href="#outcomes">Outcomes</a><a href="#ecosystem">Ecosystem</a><a href="#glossary">Glossary</a></nav>
   </div></div>
   <div class="hero">
     <p class="code">NETW 112</p>
@@ -298,6 +301,28 @@ div.box .wk{color:var(--muted)}
       <tbody>
         <tr><td><code>EX188</code></td><td>Red Hat Certified Specialist in Containers</td><td>Weeks 1 to 9 prepare you directly.</td></tr>
         <tr><td><code>EX280</code></td><td>Red Hat Certified OpenShift Administrator</td><td>Weeks 10 to 15 build the foundation; an advanced follow-on course completes the preparation.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="block" id="ecosystem" aria-labelledby="eco-h">
+    <h2 id="eco-h">The wider ecosystem</h2>
+    <p class="lead">This course teaches Red Hat's tools, which the certifications test. Every week also has a Beyond Red Hat section showing how the same ideas work in Docker, upstream Kubernetes and the clouds. Here is the map in one place.</p>
+    <div class="table-wrap"><table>
+      <caption class="vh">Red Hat tools and their common alternatives</caption>
+      <thead><tr><th scope="col">Job</th><th scope="col">In this course</th><th scope="col">Common alternatives</th></tr></thead>
+      <tbody>
+        <tr><td>Run containers on one machine</td><td>Podman</td><td>Docker Engine, Docker Desktop, Podman Desktop, nerdctl with containerd</td></tr>
+        <tr><td>Build images</td><td>Podman build, Buildah</td><td>Docker BuildKit and buildx, Cloud Native Buildpacks</td></tr>
+        <tr><td>Inspect and copy images in registries</td><td>Skopeo</td><td>crane, regctl, oras</td></tr>
+        <tr><td>Store images</td><td>Quay, Red Hat registries</td><td>Docker Hub, GitHub Container Registry, Amazon ECR, Google Artifact Registry, Azure Container Registry, Harbor</td></tr>
+        <tr><td>Base images</td><td>Universal Base Images (UBI)</td><td>Docker Official Images, Alpine, Debian slim, distroless, Chainguard</td></tr>
+        <tr><td>Multi-container apps on one host</td><td>Podman Compose, pods</td><td>Docker Compose</td></tr>
+        <tr><td>Container runtime under Kubernetes</td><td>CRI-O</td><td>containerd</td></tr>
+        <tr><td>Kubernetes platform</td><td>Red Hat OpenShift</td><td>Upstream Kubernetes, Amazon EKS, Azure AKS, Google GKE, Rancher RKE2, k3s</td></tr>
+        <tr><td>Cluster command line</td><td><code>oc</code></td><td><code>kubectl</code> (oc includes every kubectl command)</td></tr>
+        <tr><td>Local practice cluster</td><td>Developer Sandbox, OpenShift Local</td><td>minikube, kind, k3d</td></tr>
+        <tr><td>Image security</td><td>Signature policies, Quay scanning (Clair)</td><td>Sigstore cosign, Trivy, Grype</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -521,8 +546,8 @@ var NETW = (function () {
     { n: 2, t: 'Podman basics', part: 1, file: 'week02.html', type: '1 lab' },
     { n: 3, t: 'Container images', part: 1, file: 'week03.html', type: '1 lab' },
     { n: 4, t: 'Custom container images', part: 1, file: 'week04.html', type: '1 lab' },
-    { n: 5, t: 'Persisting data', part: 1, type: '1 lab' },
-    { n: 6, t: 'Troubleshooting containers', part: 1, type: '1 lab' },
+    { n: 5, t: 'Persisting data', part: 1, file: 'week05.html', type: '1 lab' },
+    { n: 6, t: 'Troubleshooting containers', part: 1, file: 'week06.html', type: '1 lab' },
     { n: 7, t: 'Multi-container applications with Compose', part: 1, type: '1 lab' },
     { n: 8, t: 'Container orchestration with OpenShift and Kubernetes', part: 1, type: '1 lab' },
     { n: 9, t: 'Midterm lab practical and review', part: 1, type: 'Practical', practical: true },
@@ -607,6 +632,16 @@ var NETW = (function () {
     ['PersistentVolumeClaim', 14, 'A request for storage that a pod can mount and that outlives the pod.'],
     ['Probe', 14, 'A health check (startup, readiness or liveness) Kubernetes uses to decide whether a container is healthy.'],
     ['Horizontal Pod Autoscaler', 14, 'A resource that adds or removes pod replicas based on measured load.'],
+    ['Docker', 1, 'The container engine and tool set that popularized containers. Uses a background daemon; commands closely match Podman\u2019s.'],
+    ['containerd', 1, 'A CNCF container runtime used inside Docker and by many Kubernetes clusters.'],
+    ['CRI-O', 1, 'A lightweight container runtime built for Kubernetes. The runtime inside OpenShift.'],
+    ['CNCF', 1, 'Cloud Native Computing Foundation: the open source foundation that hosts Kubernetes, containerd, Prometheus and many related projects.'],
+    ['Docker Hub', 3, 'Docker\u2019s public registry, docker.io, and the default for Docker short names.'],
+    ['BuildKit', 4, 'Docker\u2019s image builder, with multi-platform builds and cache mounts.'],
+    ['Bind mount', 5, 'A host directory or file made visible inside a container.'],
+    ['podman unshare', 5, 'Runs a command inside your rootless user namespace, where you appear as root and container UIDs exist.'],
+    ['Exit code', 6, 'The number a container\u2019s main process ends with. 127 means command not found; 137 means killed by SIGKILL.'],
+    ['kubectl', 10, 'The upstream Kubernetes command-line client.'],
     ['Rolling update', 15, 'Replacing pods gradually with a new version so the application stays available.']
   ];
   G.sort(function (a, b) { return a[0].toLowerCase() < b[0].toLowerCase() ? -1 : 1; });

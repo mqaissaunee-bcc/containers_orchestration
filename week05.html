@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Week 2: Podman Basics | NETW 112 Containers &amp; Orchestration</title>
-<meta name="description" content="NETW 112 Week 2. Run, inspect, network and clean up containers with Podman, with a practice terminal and missions that mirror the Chapter 2 lab skills.">
+<title>Week 5: Persisting Data | NETW 112 Containers &amp; Orchestration</title>
+<meta name="description" content="NETW 112 Week 5. Keep data beyond a container's life with named volumes and bind mounts, label mounts correctly for SELinux, handle rootless UID mapping, and run a database in a container.">
 <style>:root{
   --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#E9EEF1; --ink:#17212B; --muted:#4A5866;
   --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0;
@@ -169,14 +169,6 @@ td code{font-family:var(--mono);font-size:.86rem}
 .unit.beyond>h2::after{content:"";flex:1;height:2px;margin-left:var(--s3);align-self:center;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
 .eco-tag{display:inline-block;font:600 .78rem var(--sans);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.1rem .55rem;margin-bottom:var(--s3)}
 
-/* lifecycle */
-.states{display:flex;flex-wrap:wrap;gap:var(--s2);list-style:none;padding:0;margin:var(--s3) 0}
-.states li{padding:var(--s2) var(--s3);border:1px solid var(--line);border-radius:999px;font:500 .9rem var(--mono);color:var(--muted)}
-.states li[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.lc-actions{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0}
-.lc-actions .btn{font-family:var(--mono);font-weight:500;font-size:.88rem}
-.lc-out{min-height:4.5rem;max-width:var(--measure)}
-.lc-out code{font-family:var(--mono);background:var(--surface-2);padding:.1em .35em;border-radius:3px}
 /* terminal */
 .sim{display:grid;grid-template-columns:1fr;gap:var(--s5)}
 
@@ -206,38 +198,44 @@ td code{font-family:var(--mono);font-size:.86rem}
 .missions summary{cursor:pointer;color:var(--accent);font-size:.85rem;min-height:32px;display:flex;align-items:center}
 .missions code{font-family:var(--mono);font-size:.8rem;word-break:break-all}
 
-/* decoder */
-.decoder input{width:100%;min-height:44px;font:.9rem var(--mono);padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)}
-.decoder label{font-weight:600;display:block;margin-bottom:var(--s2)}
-.decoded{margin:var(--s4) 0 0;display:grid;grid-template-columns:1fr;gap:var(--s2)}
-@media (min-width:44rem){.decoded{grid-template-columns:minmax(10rem,auto) 1fr}}
-.decoded dt{font:.86rem var(--mono);background:var(--surface-2);padding:var(--s2) var(--s3);border-radius:var(--radius-sm);word-break:break-all}
-.decoded dd{margin:0 0 var(--s2);padding:var(--s2) 0;font-size:.95rem}
-.decoded dd.bad{color:var(--bad)}
+.mx-controls{display:grid;grid-template-columns:1fr;gap:var(--s3);max-width:60rem}
+@media (min-width:48rem){.mx-controls{grid-template-columns:repeat(2,1fr)}}
+.mx-controls fieldset{border:1px solid var(--line);border-radius:var(--radius);padding:var(--s2) var(--s3) var(--s3);margin:0;min-width:0}
+.mx-controls legend{font-weight:600;padding:0 var(--s2);font-size:.95rem}
+.mx-controls label{display:flex;gap:var(--s2);align-items:center;min-height:40px;font-size:.92rem;cursor:pointer}
+.mx-controls input{width:1.1rem;height:1.1rem;flex:none}
+.mx-flag{font-family:var(--mono);background:var(--term-bg);color:var(--term-ok);padding:var(--s3) var(--s4);border-radius:var(--radius);margin:var(--s4) 0 var(--s3);overflow-x:auto;white-space:pre;font-size:.86rem}
+.mx-table td.yes{color:var(--ok);font-weight:700}
+.mx-table td.no{color:var(--bad);font-weight:700}
+.mx-table td.na{color:var(--muted);font-weight:700}
+.uidmap{display:grid;grid-template-columns:1fr auto 1fr;gap:var(--s2) var(--s3);align-items:center;max-width:36rem;margin:var(--s4) 0;font:.9rem var(--mono)}
+.uidmap div{padding:var(--s2) var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface)}
+.uidmap .h{font:600 .85rem var(--sans);border:0;background:transparent;padding:0}
+.uidmap .arrow{border:0;background:transparent;color:var(--muted);text-align:center}
 </style>
 </head>
-<body data-module="w02">
+<body data-module="w05">
 <a href="#main" class="skip-link">Skip to main content</a>
 <div id="sr-status" class="vh" role="status" aria-live="polite"></div>
 
 <header>
   <div class="topbar"><div class="topbar-inner">
     <a class="brand" href="index.html"><span class="brand-code">NETW 112</span> Course home</a>
-    <nav class="weeknav" aria-label="Week navigation"><a href="week01.html">Previous: Week 1</a><a href="week03.html">Next: Week 3, container images</a></nav>
+    <nav class="weeknav" aria-label="Week navigation"><a href="week04.html">Previous: Week 4</a><a href="week06.html">Next: Week 6, troubleshooting</a></nav>
   </div></div>
   <div class="masthead">
-    <p class="weekno">Week 2</p>
-    <h1>Podman basics</h1>
-    <p class="deck">This week you start, inspect, connect and clean up real containers. These few commands are the ones you will type more than any others for the rest of the semester, and on the EX188 exam.</p>
+    <p class="weekno">Week 5</p>
+    <h1>Keeping data alive</h1>
+    <p class="deck">Containers are meant to be thrown away, but your data isn't. This week you store data outside the container with volumes and bind mounts, and learn the two Linux security layers, SELinux and user namespaces, that decide whether a container can actually read and write it.</p>
     <dl class="meta">
-      <div><dt>Red Hat course</dt><dd>DO188, Chapter 2 topics</dd></div>
+      <div><dt>Red Hat course</dt><dd>DO188, Chapter 5 topics</dd></div>
       <div><dt>Session type</dt><dd>Lab, 1 graded</dd></div>
-      <div><dt>Course outcome</dt><dd>Outcome 1</dd></div>
-      <div><dt>Time</dt><dd>About 3 hours with the lab</dd></div>
+      <div><dt>Course outcome</dt><dd>Outcome 3</dd></div>
+      <div><dt>Time</dt><dd>About 3.5 hours with the lab</dd></div>
     </dl>
     <div class="progress-wrap">
       <div class="progress-label"><span>Your progress this week</span><span id="progress-count">0 of 0 sections</span></div>
-      <div class="bar" id="progress" role="progressbar" aria-label="Week 2 progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+      <div class="bar" id="progress" role="progressbar" aria-label="Week 5 progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
     </div>
   </div>
 </header>
@@ -247,10 +245,13 @@ td code{font-family:var(--mono);font-size:.86rem}
     <details open><summary>In this week</summary>
       <ol>
         <li><a href="#goals">Goals</a></li>
-        <li><a href="#run">Running a container</a></li>
-        <li><a href="#life">The container lifecycle</a></li>
-        <li><a href="#inside">Looking inside a container</a></li>
-        <li><a href="#net">Ports and networks</a></li>
+        <li><a href="#why">Why container data disappears</a></li>
+        <li><a href="#volumes">Named volumes</a></li>
+        <li><a href="#binds">Bind mounts</a></li>
+        <li><a href="#selinux">SELinux and mounts</a></li>
+        <li><a href="#uids">Rootless ownership</a></li>
+        <li><a href="#explorer">Mount explorer</a></li>
+        <li><a href="#db">Running a database</a></li>
         <li><a href="#practice">Practice terminal</a></li>
         <li><a href="#beyond">Beyond Red Hat</a></li>
         <li><a href="#check">Knowledge check</a></li>
@@ -265,171 +266,189 @@ td code{font-family:var(--mono);font-size:.86rem}
     <h2><span class="n">1</span>Goals</h2>
     <p class="prose">By the end of this week you should be able to:</p>
     <ul class="objectives">
-      <li>Start containers in the foreground, in the background and interactively, with and without automatic removal.</li>
-      <li>List, stop, start, restart and remove containers, and explain each lifecycle state.</li>
-      <li>Read container logs, run commands inside a running container, copy files in and query details with <code class="inline-code">podman inspect</code>.</li>
-      <li>Publish container ports to the host, and explain the rootless rule for ports below 1024.</li>
-      <li>Create a user-defined network so containers can reach each other by name.</li>
+      <li>Explain why data written inside a container is lost when the container is removed.</li>
+      <li>Create, use, inspect, back up and remove named volumes.</li>
+      <li>Mount a host directory into a container, read-only or read-write.</li>
+      <li>Choose between the <code class="inline-code">:z</code> and <code class="inline-code">:Z</code> SELinux options and recognize an SELinux denial.</li>
+      <li>Explain how rootless Podman maps container UIDs to host UIDs, and fix ownership with <code class="inline-code">podman unshare</code> or <code class="inline-code">:U</code>.</li>
+      <li>Run a containerized database whose data survives container replacement.</li>
     </ul>
   </section>
 
-  <section class="unit" id="run" data-unit>
-    <h2><span class="n">2</span>Running a container</h2>
+  <section class="unit" id="why" data-unit>
+    <h2><span class="n">2</span>Why container data disappears</h2>
     <div class="prose">
-      <p>The workhorse command is <code>podman run</code>. In its simplest form you give it an image and, optionally, a command to run instead of the image's default:</p>
+      <p>Recall from Week 1 that a container is an image's read-only layers plus one thin writable layer. Everything the container writes, whether log files, uploaded images or database tables, lands in that writable layer. <code>podman rm</code> deletes the layer, and the data goes with it.</p>
+      <p>That is by design. Replacing containers rather than repairing them only works if the container holds nothing you'd miss. So we split applications into two kinds of content:</p>
+      <ul>
+        <li><strong>The application itself</strong> (code, libraries, default configuration) belongs in the image, rebuilt whenever it changes.</li>
+        <li><strong>State</strong> (database files, uploads, anything users create) belongs outside the container, in storage that outlives any single container.</li>
+      </ul>
+      <p>Podman offers two kinds of outside storage: <strong>named volumes</strong>, which Podman manages for you, and <strong>bind mounts</strong>, which expose a directory you choose on the host. The writable layer is also slower than either, because every write goes through the overlay filesystem's copy-on-write machinery.</p>
     </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman run registry.access.redhat.com/ubi9/ubi echo "Hello, containers"</span>
-<span class="o">Trying to pull registry.access.redhat.com/ubi9/ubi:latest...
-Getting image source signatures
-Copying blob 7c5f…  done
-Copying config 3a1b…  done
-Writing manifest to image destination
-Hello, containers</span></pre>
+  </section>
+
+  <section class="unit" id="volumes" data-unit>
+    <h2><span class="n">3</span>Named volumes</h2>
     <div class="prose">
-      <p>Several things happened. Podman didn't have the image, so it pulled it from the registry. It created a container, ran <code>echo</code> inside it, printed the output and then the container exited, because its only process finished. <strong>A container lives exactly as long as its main process.</strong> That one rule explains a surprising amount of container behavior.</p>
-      <h3>Options you'll use constantly</h3>
+      <p>A <strong>named volume</strong> is a storage area that Podman creates, tracks and cleans up. You refer to it by name and never need to know where it lives. The <code>-v</code> option mounts it into the container at a path: <em>volume name</em>:<em>container path</em>.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman volume create web-data</span>
+<span class="p">$ </span><span class="c">podman run -d --name web -p 8080:8080 -v web-data:/var/www/html registry.access.redhat.com/ubi9/httpd-24</span>
+<span class="p">$ </span><span class="c">podman volume ls</span>
+<span class="o">DRIVER      VOLUME NAME
+local       web-data</span>
+<span class="p">$ </span><span class="c">podman volume inspect --format '{{.Mountpoint}}' web-data</span>
+<span class="o">/home/student/.local/share/containers/storage/volumes/web-data/_data</span></pre>
+    <div class="prose">
+      <p>If the volume doesn't exist yet, <code>podman run -v</code> creates it automatically. When an empty volume is first mounted over a path that already has content in the image, Podman copies that content into the volume, so the app still finds its default files.</p>
+      <p>Named volumes are the right default for application data. Podman handles their SELinux labeling for you, and because they live in your container storage, the ownership puzzles in section 6 rarely come up.</p>
+      <h3>Lifecycle and backup</h3>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman volume export web-data -o web-data.tar</span>   <span class="o"># back up</span>
+<span class="p">$ </span><span class="c">podman volume import web-data web-data.tar</span>      <span class="o"># restore into an existing volume</span>
+<span class="p">$ </span><span class="c">podman volume rm web-data</span>                       <span class="o"># fails while a container uses it</span>
+<span class="p">$ </span><span class="c">podman volume prune</span>                             <span class="o"># remove every unused volume</span></pre>
+    <div class="callout warn"><span class="label">Prune carefully</span>
+      <p>A volume counts as unused when no container, running or stopped, references it. If you removed a database container last week and planned to reattach its volume later, <code>podman volume prune</code> deletes the data permanently.</p></div>
+  </section>
+
+  <section class="unit" id="binds" data-unit>
+    <h2><span class="n">4</span>Bind mounts</h2>
+    <div class="prose">
+      <p>A <strong>bind mount</strong> makes an existing host directory, or a single file, appear inside the container. Changes on either side are instantly visible on the other. That makes bind mounts ideal for:</p>
+      <ul>
+        <li>Development, where you edit code on the host and the container serves it immediately.</li>
+        <li>Supplying configuration files that you manage on the host.</li>
+        <li>Data that other host tools need to read, such as backups or reports.</li>
+      </ul>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">mkdir site</span>
+<span class="p">$ </span><span class="c">podman run -d --name site -p 8081:8080 -v ./site:/var/www/html:Z registry.access.redhat.com/ubi9/httpd-24</span>
+<span class="p">$ </span><span class="c">podman run --rm -v ./app.conf:/etc/app/app.conf:ro,Z registry.access.redhat.com/ubi9/ubi cat /etc/app/app.conf</span></pre>
+    <div class="callout warn"><span class="label">Common mistake</span>
+      <p>The source must be a path, absolute or starting with <code>./</code>. <code>-v site:/var/www/html</code> doesn't mount your <code>site</code> directory; it silently creates a <em>named volume</em> called <code>site</code>. Your files never appear and nothing reports an error.</p></div>
+    <div class="prose">
+      <p>The <code>ro</code> option makes the mount read-only inside the container, which is good practice for configuration. Combine options with commas: <code>:ro,Z</code>.</p>
+    </div>
+  </section>
+
+  <section class="unit" id="selinux" data-unit>
+    <h2><span class="n">5</span>SELinux and mounts</h2>
+    <div class="prose">
+      <p>Week 1 introduced SELinux's role in isolation: container processes run with the type <code>container_t</code>, and SELinux policy lets them touch only files labeled <code>container_file_t</code>. Files in your home directory are labeled <code>user_home_t</code>. So when you bind-mount <code>~/site</code> into a container without any label option, SELinux blocks every access, even though ordinary file permissions would allow it.</p>
+      <p>The symptom is a plain <code>Permission denied</code>, which is confusing precisely because <code>ls -l</code> looks fine. In the httpd image it shows up as <code>403 Forbidden</code>.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">ls -ldZ site</span>
+<span class="o">drwxr-xr-x. 2 student student unconfined_u:object_r:user_home_t:s0  24 Oct  8 09:14 site</span>
+<span class="p">$ </span><span class="c">sudo ausearch -m avc -ts recent</span>   <span class="o"># shows the denial, if you have sudo</span></pre>
+    <div class="prose">
+      <p>Ask Podman to relabel the directory when it mounts it:</p>
     </div>
     <div class="table-wrap"><table>
-      <caption class="vh">Common podman run options</caption>
-      <thead><tr><th scope="col">Option</th><th scope="col">What it does</th></tr></thead>
+      <caption class="vh">SELinux mount options</caption>
+      <thead><tr><th scope="col">Option</th><th scope="col">New label</th><th scope="col">Who can use it</th></tr></thead>
       <tbody>
-        <tr><td><code>-d</code>, <code>--detach</code></td><td>Run in the background and print the container ID. Use it for servers.</td></tr>
-        <tr><td><code>--name web</code></td><td>Give the container a name you can type. Otherwise Podman invents one such as <code>quirky_turing</code>.</td></tr>
-        <tr><td><code>-it</code></td><td>Interactive with a terminal (<code>-i</code> keeps standard input open, <code>-t</code> allocates a terminal). Use it to get a shell.</td></tr>
-        <tr><td><code>--rm</code></td><td>Remove the container automatically when it exits. Good for one-off commands.</td></tr>
-        <tr><td><code>-p 8080:8080</code></td><td>Publish a port: <em>host port</em>:<em>container port</em>.</td></tr>
-        <tr><td><code>-e NAME=value</code></td><td>Set an environment variable, the usual way to configure a containerized app.</td></tr>
-        <tr><td><code>--network app-net</code></td><td>Attach the container to a specific network.</td></tr>
+        <tr><td><code>:z</code> (lowercase)</td><td><code>container_file_t:s0</code></td><td>Any container. Use it when several containers share the directory.</td></tr>
+        <tr><td><code>:Z</code> (uppercase)</td><td><code>container_file_t:s0:c142,c871</code></td><td>Only this container, through its unique category pair. Safest choice for one container.</td></tr>
       </tbody>
     </table></div>
-    <div class="prose">
-      <p>Here's a typical server start. The container runs in the background and Podman prints its full ID:</p>
-    </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d --name web -p 8080:8080 registry.access.redhat.com/ubi9/httpd-24</span>
-<span class="o">8d2f6c1e9b0a4f7d…</span>
-<span class="p">$ </span><span class="c">podman ps</span>
-<span class="o">CONTAINER ID  IMAGE                                            COMMAND               CREATED        STATUS        PORTS                   NAMES
-8d2f6c1e9b0a  registry.access.redhat.com/ubi9/httpd-24:latest  /usr/bin/run-http...  5 seconds ago  Up 5 seconds  0.0.0.0:8080->8080/tcp  web</span></pre>
-    <div class="callout warn"><span class="label">Common mistake</span>
-      <p><code>podman run -d registry.access.redhat.com/ubi9/ubi</code> appears to do nothing: <code>podman ps</code> shows no container. The image's default command is a shell, a shell with no input exits immediately, and the container exits with it. Run <code>podman ps -a</code> to see it with status <code>Exited (0)</code>. Detach only things that keep running, such as servers.</p></div>
-    <div class="lab-frame decoder">
-      <h3>Decode a podman run command</h3>
-      <p class="hint">Type or paste any <code class="inline-code">podman run</code> command to see what each part means. Try changing the example.</p>
-      <label for="dec-in">Command to decode</label>
-      <input id="dec-in" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" value="podman run -d --name web -p 8080:8080 -e TZ=America/New_York registry.access.redhat.com/ubi9/httpd-24">
-      <dl class="decoded" id="dec-out" aria-live="polite"></dl>
-    </div>
-  </section>
-
-  <section class="unit" id="life" data-unit>
-    <h2><span class="n">3</span>The container lifecycle</h2>
-    <div class="prose">
-      <p>A container moves through a small set of states. <code>podman run</code> is really two steps in one: <code>podman create</code> makes the container (allocating its writable layer and configuration) and <code>podman start</code> launches its main process.</p>
-      <ul>
-        <li><strong>Created</strong>: configured, but the process has never run.</li>
-        <li><strong>Running</strong>: the main process is alive.</li>
-        <li><strong>Paused</strong>: every process is frozen in place using the cgroup freezer. Memory is kept; nothing executes.</li>
-        <li><strong>Exited</strong>: the main process ended. The container and its writable layer still exist, so you can read its logs or start it again.</li>
-        <li><strong>Removed</strong>: gone, along with its writable layer.</li>
-      </ul>
-      <p><code>podman stop</code> asks politely: it sends <code>SIGTERM</code>, waits (10 seconds by default) and only then sends <code>SIGKILL</code>. <code>podman kill</code> sends <code>SIGKILL</code> immediately, which gives the app no chance to clean up.</p>
-    </div>
-    <div class="lab-frame">
-      <h3>Drive a container through its states</h3>
-      <p class="hint">Only the commands that make sense in the current state will work. Try the ones that don't, too, to see the error you'd get.</p>
-      <ul class="states" id="lc-states" aria-label="Container states">
-        <li data-st="none">no container</li><li data-st="created">created</li><li data-st="running">running</li><li data-st="paused">paused</li><li data-st="exited">exited</li>
-      </ul>
-      <div class="lc-actions" id="lc-actions">
-        <button type="button" class="btn ghost" data-op="create">create</button>
-        <button type="button" class="btn ghost" data-op="start">start</button>
-        <button type="button" class="btn ghost" data-op="pause">pause</button>
-        <button type="button" class="btn ghost" data-op="unpause">unpause</button>
-        <button type="button" class="btn ghost" data-op="stop">stop</button>
-        <button type="button" class="btn ghost" data-op="kill">kill</button>
-        <button type="button" class="btn ghost" data-op="rm">rm</button>
-        <button type="button" class="btn ghost" data-op="rmf">rm -f</button>
-      </div>
-      <div class="lc-out" id="lc-out" aria-live="polite"></div>
-    </div>
-  </section>
-
-  <section class="unit" id="inside" data-unit>
-    <h2><span class="n">4</span>Looking inside a container</h2>
-    <div class="prose">
-      <p>When a containerized app misbehaves, four commands do most of the investigating. You'll go deeper in Week 6, but you need them from day one.</p>
-      <h3>Logs</h3>
-      <p>Anything the main process writes to standard output or standard error is captured. Well-built images send their logs there instead of to files inside the container. Add <code>-f</code> to follow new lines as they arrive, and <code>--tail 20</code> to see only the end.</p>
-    </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman logs web</span>
-<span class="p">$ </span><span class="c">podman logs -f --tail 20 web</span></pre>
-    <div class="prose">
-      <h3>Exec</h3>
-      <p><code>podman exec</code> starts an additional process inside a <em>running</em> container. It shares that container's namespaces, so it sees the same files, network and processes.</p>
-    </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman exec web cat /etc/redhat-release</span>
-<span class="o">Red Hat Enterprise Linux release 9.4 (Plow)</span>
-<span class="p">$ </span><span class="c">podman exec -it web /bin/bash</span>
-<span class="o">bash-5.1$ whoami
-default
-bash-5.1$ exit</span></pre>
-    <p class="hint">The httpd image runs as an unprivileged user named <code class="inline-code">default</code> (UID 1001), not as root. That design choice is what lets it run on OpenShift later.</p>
-    <div class="prose">
-      <h3>Inspect</h3>
-      <p><code>podman inspect</code> prints everything Podman knows about a container or image as JSON: state, exit code, IP address, mounts, environment and more. The <code>--format</code> option takes a Go template, so you can pull out one value without scrolling through hundreds of lines.</p>
-    </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman inspect --format '{{.State.Status}}' web</span>
-<span class="o">running</span>
-<span class="p">$ </span><span class="c">podman inspect --format '{{.NetworkSettings.IPAddress}}' web</span></pre>
-    <div class="prose">
-      <h3>Copy</h3>
-      <p><code>podman cp</code> copies files between the host and a container, in either direction. It's handy for pulling out a log file or dropping in a test page. Remember the change lives in the container's writable layer and disappears when the container is removed; you'll learn the permanent fixes (custom images and volumes) in Weeks 4 and 5.</p>
-    </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman cp index.html web:/var/www/html/index.html</span>
-<span class="p">$ </span><span class="c">podman cp web:/etc/httpd/conf/httpd.conf .</span></pre>
-  </section>
-
-  <section class="unit" id="net" data-unit>
-    <h2><span class="n">5</span>Ports and networks</h2>
-    <div class="prose">
-      <p>A container has its own network namespace, so a server listening on port 8080 inside it is invisible from outside until you <strong>publish</strong> the port. The <code>-p</code> option maps a host port to a container port. The host side comes first:</p>
-    </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d --name web -p 8080:8080 registry.access.redhat.com/ubi9/httpd-24</span>
-<span class="p">$ </span><span class="c">podman port web</span>
-<span class="o">8080/tcp -> 0.0.0.0:8080</span>
-<span class="p">$ </span><span class="c">curl http://localhost:8080</span></pre>
-    <div class="prose">
-      <p>The two numbers don't have to match. <code>-p 9000:8080</code> lets you reach the same server at <code>localhost:9000</code>, which is how you run two copies of one image side by side. Only one container can hold a given host port at a time.</p>
-      <h3>The rootless port rule</h3>
-      <p>By default, Linux reserves ports below 1024 for privileged processes. A rootless container therefore cannot publish host port 80 or 443:</p>
-    </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d -p 80:8080 registry.access.redhat.com/ubi9/httpd-24</span>
-<span class="o">Error: rootlessport cannot expose privileged port 80, you can add 'net.ipv4.ip_unprivileged_port_start=80' to /etc/sysctl.conf (currently 1024), or choose a larger port number (>= 1024)</span></pre>
-    <div class="prose">
-      <p>The fix in this course is simply to use a host port of 1024 or above. This is also why Red Hat's images listen on 8080 rather than 80 inside the container: an unprivileged process can bind it.</p>
-      <h3>Container-to-container traffic</h3>
-      <p>Rootless containers share a private network that Podman sets up for your user. Every container you start without <code>--network</code> joins the default network, named <code>podman</code>. Containers on it can reach each other by IP address, but <strong>the default network does not provide name resolution</strong>. IP addresses change every time a container is recreated, so relying on them is fragile.</p>
-      <p>Create your own network instead. Podman runs a small DNS service for every user-defined network, so containers on it can find each other by container name:</p>
-    </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman network create app-net</span>
-<span class="p">$ </span><span class="c">podman run -d --name web --network app-net registry.access.redhat.com/ubi9/httpd-24</span>
-<span class="p">$ </span><span class="c">podman run --rm --network app-net registry.access.redhat.com/ubi9/ubi curl -s http://web:8080</span></pre>
-    <p class="hint">Notice the second container reached <code class="inline-code">web</code> on port 8080 without any <code class="inline-code">-p</code>. Publishing is only needed for traffic coming from outside Podman's network.</p>
+    <div class="callout warn"><span class="label">Never relabel system directories</span>
+      <p>The relabel is permanent and applies to everything inside the directory. Never use <code>:z</code> or <code>:Z</code> on your whole home directory, <code>/etc</code>, <code>/usr</code> or other system paths. Other programs on the host may stop working. Create a dedicated directory for each container.</p></div>
     <div class="callout exam"><span class="label">Exam habit</span>
-      <p>When two containers need to talk, put them on one user-defined network and use container names as hostnames. Reach for <code>-p</code> only for the ports a person or another machine needs to reach from the host.</p></div>
+      <p>Add <code>:Z</code> to every bind mount by default, and switch to <code>:z</code> only when two containers must share the directory. Don't disable SELinux to make a mount work.</p></div>
+  </section>
+
+  <section class="unit" id="uids" data-unit>
+    <h2><span class="n">6</span>Rootless ownership</h2>
     <div class="prose">
-      <h3>Configuring with environment variables</h3>
-      <p>Many images expect settings as environment variables. A database image, for example, typically needs a user, password and database name before it will start. Red Hat's database images live on <code>registry.redhat.io</code>, which requires you to sign in first with <code>podman login registry.redhat.io</code>:</p>
+      <p>Even with the right SELinux label, a rootless container can be refused permission to <em>write</em> to a bind mount. The cause is the user namespace from Week 1. Inside the container, UIDs are mapped onto a range of host UIDs reserved for you in <code>/etc/subuid</code>:</p>
     </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">podman run -d --name db --network app-net \
-  -e MYSQL_USER=user1 -e MYSQL_PASSWORD=mypa55 -e MYSQL_DATABASE=items \
-  registry.redhat.io/rhel9/mariadb-105</span></pre>
-    <p class="hint">Each image documents the variables it reads. Check with <code class="inline-code">skopeo inspect</code> or the image's page in the Red Hat Ecosystem Catalog.</p>
+    <div class="uidmap" role="table" aria-label="Rootless UID mapping example">
+      <div class="h" role="columnheader">Inside the container</div><div class="h arrow" role="columnheader"><span class="vh">maps to</span></div><div class="h" role="columnheader">On the host</div>
+      <div role="cell">UID 0 (root)</div><div class="arrow" aria-hidden="true">→</div><div role="cell">1000 (student, you)</div>
+      <div role="cell">UID 1</div><div class="arrow" aria-hidden="true">→</div><div role="cell">100000</div>
+      <div role="cell">UID 27 (mysql)</div><div class="arrow" aria-hidden="true">→</div><div role="cell">100026</div>
+      <div role="cell">UID 1001 (httpd user)</div><div class="arrow" aria-hidden="true">→</div><div role="cell">101000</div>
+    </div>
+    <div class="prose">
+      <p>A directory you create is owned by you, UID 1000 on the host, which the container sees as root. A container whose process runs as root can write to it. But the httpd image runs as UID 1001, and the MariaDB image runs its database as UID 27. To them, your directory belongs to someone else, and writes fail.</p>
+      <p>There are two fixes. <code>podman unshare</code> runs a command <em>inside</em> your user namespace, where you are root and the container's UIDs exist, so you can hand the directory to the container's user:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman unshare chown 27:27 dbdata</span>
+<span class="p">$ </span><span class="c">ls -ld dbdata</span>
+<span class="o">drwxr-xr-x. 2 100026 100026 … dbdata</span>
+<span class="p">$ </span><span class="c">podman unshare cat /proc/self/uid_map</span>
+<span class="o">         0       1000          1
+         1     100000      65536</span></pre>
+    <div class="prose">
+      <p>Or let Podman do it at start-up with the <code>:U</code> mount option, which changes the directory's ownership to match the container's user: <code>-v ./dbdata:/var/lib/mysql/data:Z,U</code>.</p>
+      <p>Either way, the directory now belongs to a host UID in your subordinate range, so <em>you</em> can no longer edit its files directly. Use <code>podman unshare</code> to work in it, or <code>podman unshare chown 0:0</code> to give it back.</p>
+    </div>
+  </section>
+
+  <section class="unit" id="explorer" data-unit>
+    <h2><span class="n">7</span>Mount explorer</h2>
+    <p class="prose">Choose a storage setup and see who can read, write and keep the data. Try a bind mount with no label first, then fix it one option at a time.</p>
+    <div class="lab-frame">
+      <div class="mx-controls">
+        <fieldset><legend>Storage</legend>
+          <label><input type="radio" name="mx-type" value="none"> Nothing (container writable layer)</label>
+          <label><input type="radio" name="mx-type" value="vol"> Named volume <code class="inline-code">data</code></label>
+          <label><input type="radio" name="mx-type" value="bind" checked> Bind mount <code class="inline-code">./data</code></label>
+        </fieldset>
+        <fieldset><legend>SELinux option</legend>
+          <label><input type="radio" name="mx-sel" value="" checked> None</label>
+          <label><input type="radio" name="mx-sel" value="z"> <code class="inline-code">:z</code> shared</label>
+          <label><input type="radio" name="mx-sel" value="Z"> <code class="inline-code">:Z</code> private</label>
+        </fieldset>
+        <fieldset><legend>Container process runs as</legend>
+          <label><input type="radio" name="mx-user" value="0"> UID 0 (root in a ubi9/ubi container)</label>
+          <label><input type="radio" name="mx-user" value="1001" checked> UID 1001 (the httpd image)</label>
+        </fieldset>
+        <fieldset><legend>Ownership of ./data</legend>
+          <label><input type="radio" name="mx-own" value="me" checked> Left as created (you)</label>
+          <label><input type="radio" name="mx-own" value="unshare"> <code class="inline-code">podman unshare chown 1001:1001 data</code></label>
+          <label><input type="radio" name="mx-own" value="U"> <code class="inline-code">:U</code> option</label>
+        </fieldset>
+      </div>
+      <div class="mx-flag" id="mx-cmd" aria-live="polite"></div>
+      <div class="table-wrap"><table class="mx-table">
+        <caption class="vh">What this setup allows</caption>
+        <thead><tr><th scope="col">Question</th><th scope="col">Answer</th><th scope="col">Why</th></tr></thead>
+        <tbody id="mx-body"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="unit" id="db" data-unit>
+    <h2><span class="n">8</span>Running a database</h2>
+    <div class="prose">
+      <p>Databases are the classic stateful workload, and they pull together everything this week covers. Red Hat's MariaDB image is on <code>registry.redhat.io</code>, so sign in first. It reads its initial user, password and database name from environment variables and stores data in <code>/var/lib/mysql/data</code>.</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman login registry.redhat.io</span>
+<span class="p">$ </span><span class="c">podman volume create dbdata</span>
+<span class="p">$ </span><span class="c">podman run -d --name db -p 3306:3306 \
+    -e MYSQL_USER=user1 -e MYSQL_PASSWORD=mypa55 -e MYSQL_DATABASE=items \
+    -v dbdata:/var/lib/mysql/data \
+    registry.redhat.io/rhel9/mariadb-105</span>
+<span class="p">$ </span><span class="c">podman logs db | tail -3</span></pre>
+    <div class="prose">
+      <p>To load data, copy a SQL script into the container and run the client inside it. The client connects through the container's own socket, so no extra networking is involved:</p>
+    </div>
+    <pre class="cmd"><span class="p">$ </span><span class="c">podman cp items.sql db:/tmp/items.sql</span>
+<span class="p">$ </span><span class="c">podman exec db sh -c 'mysql -u user1 -pmypa55 items &lt; /tmp/items.sql'</span>
+<span class="p">$ </span><span class="c">podman exec -it db mysql -u user1 -pmypa55 items -e 'SELECT COUNT(*) FROM item;'</span></pre>
+    <div class="prose">
+      <p>Now prove the data is safe: <code>podman rm -f db</code>, run the same <code>podman run</code> command again with the same volume, and query the table. The rows are still there. Because the volume already holds an initialized database, the image skips its first-run setup.</p>
+    </div>
+    <div class="callout warn"><span class="label">Same image, same data, please</span>
+      <p>Don't attach a volume initialized by one database version to a much newer image without checking its upgrade notes. And never mount the same database directory into two running database containers; they'll corrupt each other's files.</p></div>
   </section>
 
   <section class="unit" id="practice" data-unit>
-    <h2><span class="n">6</span>Practice terminal</h2>
-    <p class="prose">This is a simulator, not a real shell, but it behaves like Podman for the commands in this chapter, including the error messages. Work through the missions. Use the up and down arrow keys to recall earlier commands, and type <code class="inline-code">help</code> for the list of what it understands.</p>
+    <h2><span class="n">9</span>Practice terminal</h2>
+    <p class="prose">Your home directory now contains a folder named <code class="inline-code">site</code> with an <code class="inline-code">index.html</code> in it. Work through the missions to see volumes survive container replacement, then meet SELinux and UID mapping head-on with a bind mount. Type <code class="inline-code">help</code> for the command list.</p>
     <div class="sim">
       <div class="term" aria-label="Podman practice terminal">
         <div class="term-bar"><span>student@workstation ~ (rootless)</span><span><button type="button" id="t-clear">Clear</button> <button type="button" id="t-reset">Reset lab</button></span></div>
@@ -445,87 +464,75 @@ bash-5.1$ exit</span></pre>
   </section>
 
   <section class="unit beyond" id="beyond" data-unit>
-    <h2><span class="n">7</span>Beyond Red Hat</h2>
-    <p class="eco-tag">Podman and Docker side by side</p>
+    <h2><span class="n">10</span>Beyond Red Hat</h2>
+    <p class="eco-tag">Storage in Docker and Kubernetes</p>
     <div class="prose">
-      <p>Podman's command line copies Docker's on purpose. Almost every command this week works with <code>docker</code> in place of <code>podman</code>:</p>
-    </div>
-    <div class="table-wrap"><table>
-      <caption class="vh">Podman and Docker command equivalents</caption>
-      <thead><tr><th scope="col">Task</th><th scope="col">Podman</th><th scope="col">Docker</th></tr></thead>
-      <tbody>
-        <tr><td>Run a server</td><td><code>podman run -d --name web -p 8080:8080 IMAGE</code></td><td><code>docker run -d --name web -p 8080:8080 IMAGE</code></td></tr>
-        <tr><td>List containers</td><td><code>podman ps -a</code></td><td><code>docker ps -a</code></td></tr>
-        <tr><td>Logs, exec, inspect</td><td><code>podman logs</code>, <code>exec</code>, <code>inspect</code></td><td><code>docker logs</code>, <code>exec</code>, <code>inspect</code></td></tr>
-        <tr><td>User-defined network</td><td><code>podman network create app-net</code></td><td><code>docker network create app-net</code></td></tr>
-        <tr><td>Group containers</td><td><code>podman pod create</code></td><td>No direct equivalent (Compose fills the role)</td></tr>
-        <tr><td>Run at boot</td><td>systemd units (Quadlet), covered later</td><td><code>--restart always</code> with the daemon</td></tr>
-      </tbody>
-    </table></div>
-    <div class="prose">
-      <h3>Differences that matter</h3>
+      <h3>Docker</h3>
       <ul>
-        <li><strong>The daemon.</strong> Every <code>docker</code> command talks to <code>dockerd</code> through the socket <code>/var/run/docker.sock</code>. Anyone who can write to that socket, including members of the <code>docker</code> group, effectively has root on the host. Treat it that way.</li>
-        <li><strong>Rootful by default.</strong> Docker containers run under a root daemon unless you set up rootless mode. Podman is rootless by default, which is why this course spends time on user namespaces.</li>
-        <li><strong>Same networking lesson.</strong> Docker's default <code>bridge</code> network also lacks name resolution, while user-defined networks provide it. Everything in section 5 applies.</li>
+        <li>Volumes and bind mounts work the same way: <code>docker volume create</code>, <code>-v name:/path</code>, <code>-v ./dir:/path</code>.</li>
+        <li>Both Docker and Podman also accept the longer, more explicit <code>--mount</code> syntax: <code>--mount type=bind,source=./site,target=/var/www/html</code>. It's easier to read in scripts.</li>
+        <li>On SELinux hosts such as RHEL and Fedora, Docker honors <code>:z</code> and <code>:Z</code> too. On Ubuntu or Debian, which use AppArmor instead, the labels are ignored.</li>
+        <li>With rootful Docker, files a container creates in a bind mount are often owned by root on the host: the opposite of this week's rootless ownership puzzle.</li>
+        <li>Docker Desktop on macOS and Windows passes bind mounts through its virtual machine's file sharing, which is noticeably slower than a native Linux mount.</li>
       </ul>
-      <h3>Using Docker tools with Podman</h3>
-      <p>On RHEL, the <code>podman-docker</code> package adds a <code>docker</code> command that simply runs Podman, which helps with old scripts. Tools that speak the Docker API, such as Docker Compose or some IDE plugins, can use Podman's compatible API socket:</p>
+      <h3>Kubernetes preview</h3>
+      <p>Kubernetes separates <em>asking</em> for storage from <em>providing</em> it, which you'll practice in Week 14:</p>
+      <ul>
+        <li><strong>emptyDir</strong>: scratch space that lives as long as the pod, like a container's writable layer shared between the pod's containers.</li>
+        <li><strong>hostPath</strong>: the Kubernetes version of a bind mount. Generally avoided, because pods move between nodes and the data doesn't follow.</li>
+        <li><strong>PersistentVolumeClaim (PVC)</strong>: an application's request for storage of a given size and access mode, fulfilled by a <strong>PersistentVolume</strong>, usually created automatically by a <strong>StorageClass</strong>.</li>
+        <li><strong>CSI drivers</strong> connect Kubernetes to real storage systems: cloud disks such as AWS EBS or Azure Disk, network storage such as NFS, or software-defined storage such as Ceph (OpenShift Data Foundation).</li>
+      </ul>
     </div>
-    <pre class="cmd"><span class="p">$ </span><span class="c">systemctl --user enable --now podman.socket</span>
-<span class="p">$ </span><span class="c">export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock</span></pre>
   </section>
 
   <section class="unit" id="check" data-unit>
-    <h2><span class="n">8</span>Knowledge check</h2>
+    <h2><span class="n">11</span>Knowledge check</h2>
     <p class="hint">Eight questions, answer order shuffled each time. Practice only; not graded.</p>
     <div id="quiz"></div>
   </section>
 
   <section class="unit" id="lab" data-unit>
-    <h2><span class="n">9</span>Lab bridge</h2>
+    <h2><span class="n">12</span>Lab bridge</h2>
     <div class="bridge">
-      <h3>Your graded lab: DO188 Chapter 2 in the OLE</h3>
-      <p class="prose">Complete the Chapter 2 guided exercises first, then the end-of-chapter lab. The lab is graded on completion and correctness, and counts toward the 50% lab component of your grade.</p>
+      <h3>Your graded lab: DO188 Chapter 5 in the OLE</h3>
+      <p class="prose">Complete the Chapter 5 guided exercises, then the end-of-chapter lab. It is graded on completion and correctness.</p>
       <p class="prose"><strong>Before you start</strong></p>
       <ul class="checklist">
         <li><input type="checkbox" id="b1" data-check="b1"><label for="b1">I finished every mission in the practice terminal.</label></li>
-        <li><input type="checkbox" id="b2" data-check="b2"><label for="b2">I can explain the difference between <code class="inline-code">podman ps</code> and <code class="inline-code">podman ps -a</code>.</label></li>
-        <li><input type="checkbox" id="b3" data-check="b3"><label for="b3">I know which side of <code class="inline-code">-p host:container</code> is which.</label></li>
+        <li><input type="checkbox" id="b2" data-check="b2"><label for="b2">I can tell a named volume from a bind mount just by reading a <code class="inline-code">-v</code> option.</label></li>
+        <li><input type="checkbox" id="b3" data-check="b3"><label for="b3">I know when to use <code class="inline-code">:Z</code>, <code class="inline-code">:z</code> and <code class="inline-code">:U</code>.</label></li>
         <li><input type="checkbox" id="b4" data-check="b4"><label for="b4">I read the lab instructions all the way through before typing anything.</label></li>
       </ul>
       <p class="prose"><strong>Watch for these during the lab</strong></p>
       <ul>
-        <li>Use the exact container names, ports and image names the lab asks for. The grading script checks them literally.</li>
-        <li>Verify each step yourself (<code class="inline-code">podman ps</code>, <code class="inline-code">curl</code>, <code class="inline-code">podman logs</code>) before moving on.</li>
-        <li>Run the lab's start command before you begin and its grading or finish command when you're done, exactly as the OLE instructions show.</li>
-        <li>If the lab environment itself fails, report it to your instructor right away. Environment problems can't be accepted as an excuse after the due date.</li>
+        <li>Use the exact volume names, container paths and directory names the lab specifies.</li>
+        <li>On "Permission denied" from a bind mount, check the SELinux label first (<code class="inline-code">ls -ldZ</code>), then ownership (<code class="inline-code">ls -ln</code>).</li>
+        <li>Prove persistence the way the grader will: remove the container, start a new one with the same storage, and check the data.</li>
+        <li>Be careful with <code class="inline-code">podman volume prune</code> during the lab; it can delete data a later step needs.</li>
       </ul>
     </div>
   </section>
 
   <section class="unit" id="cheat" data-unit>
-    <h2><span class="n">10</span>Cheat sheet</h2>
+    <h2><span class="n">13</span>Cheat sheet</h2>
     <div class="table-wrap"><table>
-      <caption class="vh">Podman basics command reference</caption>
+      <caption class="vh">Persistent storage command reference</caption>
       <thead><tr><th scope="col">Task</th><th scope="col">Command</th></tr></thead>
       <tbody>
-        <tr><td>Pull an image</td><td><code>podman pull registry.access.redhat.com/ubi9/httpd-24</code></td></tr>
-        <tr><td>List local images</td><td><code>podman images</code></td></tr>
-        <tr><td>Run a one-off command</td><td><code>podman run --rm IMAGE COMMAND</code></td></tr>
-        <tr><td>Run a server in the background</td><td><code>podman run -d --name NAME -p HOST:CTR IMAGE</code></td></tr>
-        <tr><td>Get a shell in a new container</td><td><code>podman run -it --rm IMAGE /bin/bash</code></td></tr>
-        <tr><td>List running containers</td><td><code>podman ps</code></td></tr>
-        <tr><td>List all containers</td><td><code>podman ps -a</code></td></tr>
-        <tr><td>Stop, start, restart</td><td><code>podman stop NAME</code>, <code>podman start NAME</code>, <code>podman restart NAME</code></td></tr>
-        <tr><td>Remove a container</td><td><code>podman rm NAME</code> (add <code>-f</code> if running)</td></tr>
-        <tr><td>Read logs</td><td><code>podman logs [-f] NAME</code></td></tr>
-        <tr><td>Run a command inside</td><td><code>podman exec [-it] NAME COMMAND</code></td></tr>
-        <tr><td>Query one detail</td><td><code>podman inspect --format '{{.State.Status}}' NAME</code></td></tr>
-        <tr><td>Copy a file in</td><td><code>podman cp FILE NAME:/path</code></td></tr>
-        <tr><td>Show published ports</td><td><code>podman port NAME</code></td></tr>
-        <tr><td>Create a network with DNS</td><td><code>podman network create NET</code></td></tr>
-        <tr><td>Remove an image</td><td><code>podman rmi IMAGE</code></td></tr>
+        <tr><td>Create a volume</td><td><code>podman volume create NAME</code></td></tr>
+        <tr><td>Mount a volume</td><td><code>podman run -v NAME:/path IMAGE</code></td></tr>
+        <tr><td>List or inspect volumes</td><td><code>podman volume ls</code>, <code>podman volume inspect NAME</code></td></tr>
+        <tr><td>Back up and restore a volume</td><td><code>podman volume export NAME -o FILE.tar</code>, <code>podman volume import NAME FILE.tar</code></td></tr>
+        <tr><td>Remove volumes</td><td><code>podman volume rm NAME</code>, <code>podman volume prune</code></td></tr>
+        <tr><td>Bind mount, private label</td><td><code>podman run -v ./dir:/path:Z IMAGE</code></td></tr>
+        <tr><td>Bind mount, shared label</td><td><code>podman run -v ./dir:/path:z IMAGE</code></td></tr>
+        <tr><td>Read-only mount</td><td><code>-v ./file.conf:/etc/app/file.conf:ro,Z</code></td></tr>
+        <tr><td>Match ownership automatically</td><td><code>-v ./dir:/path:Z,U</code></td></tr>
+        <tr><td>Change ownership for a container UID</td><td><code>podman unshare chown UID:GID DIR</code></td></tr>
+        <tr><td>See SELinux labels</td><td><code>ls -ldZ DIR</code></td></tr>
+        <tr><td>See your UID mapping</td><td><code>podman unshare cat /proc/self/uid_map</code></td></tr>
+        <tr><td>Show a container's mounts</td><td><code>podman inspect --format '{{.Mounts}}' NAME</code></td></tr>
       </tbody>
     </table></div>
   </section>
@@ -534,7 +541,7 @@ bash-5.1$ exit</span></pre>
 
 <footer class="site-foot"><div class="inner">
   <p>Built for <span class="program">NETW 112 Containers &amp; Orchestration</span> · Brookdale Community College · <span class="year">2026</span></p>
-  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat, Red Hat Enterprise Linux and OpenShift are trademarks of Red Hat, Inc. The practice terminal is a teaching simulation and does not run real software.</p>
+  <p>Original instructional material written to accompany the Red Hat Academy courses DO188 and DO180. Not produced, endorsed or reviewed by Red Hat. Red Hat, Red Hat Enterprise Linux and OpenShift are trademarks of Red Hat, Inc. The practice terminal is a teaching simulation; UID ranges shown assume a subordinate range starting at 100000.</p>
 </div></footer>
 
 <script>/* NETW 112 shared module runtime. Inlined into every page. */
@@ -1537,138 +1544,92 @@ var NETWSIM = (function () {
   NETW.init();
   var el = NETW.el;
 
-  var tokenize = NETWSIM.tokenize, parseRun = NETWSIM.parseRun;
-  /* ================= flag decoder ================= */
+  /* mount explorer */
   (function () {
-    var inp = document.getElementById('dec-in'), out = document.getElementById('dec-out');
-    var EXPL = {
-      detach: 'Run in the background. Podman prints the container ID and gives your prompt back.',
-      interactive: 'Keep standard input open so you can type into the container.',
-      tty: 'Allocate a pseudo-terminal, so programs like bash behave like an interactive shell.',
-      it: 'Interactive plus a terminal. The usual way to get a shell inside a container.',
-      dit: 'Detached, interactive and with a terminal. Keeps a shell alive in the background so you can attach later.',
-      rm: 'Delete the container automatically when its main process exits.',
-      memory: 'Set a cgroup memory limit. Going over it gets the container killed (exit code 137).',
-      volume: 'Mount storage into the container. Covered in Week 5.',
-      user: 'Run the main process as this user instead of the image default.'
-    };
-    function add(term, desc, bad) { out.appendChild(el('dt', null, term)); out.appendChild(el('dd', bad ? { class: 'bad' } : null, desc)); }
+    var body = document.getElementById('mx-body'), cmd = document.getElementById('mx-cmd');
+    function val(n) { var c = document.querySelector('input[name="' + n + '"]:checked'); return c ? c.value : ''; }
     function render() {
-      out.textContent = '';
-      var t = tokenize(inp.value.trim());
-      if (!t.length) { add('(empty)', 'Type a command above.'); return; }
-      if (t[0] === 'sudo') { add('sudo', 'Runs Podman as root. Root has separate image and container storage from your user, and this course works rootless.', true); t.shift(); }
-      if (t[0] !== 'podman' || t[1] !== 'run') { add(t.slice(0, 2).join(' '), 'This decoder explains podman run commands. Start with: podman run', true); return; }
-      add('podman run', 'Create a new container from an image and start it.');
-      var r = parseRun(t.slice(2));
-      r.parts.forEach(function (p) {
-        var d = EXPL[p.kind];
-        if (p.kind === 'name') d = 'Name the container "' + p.val + '" so you can refer to it in other commands.';
-        if (p.kind === 'env') d = 'Set environment variable ' + p.val.split('=')[0] + (p.val.indexOf('=') > -1 ? ' to "' + p.val.split('=').slice(1).join('=') + '"' : ' from your shell\u2019s value') + ' inside the container.';
-        if (p.kind === 'network') d = 'Attach to network "' + p.val + '". On a user-defined network, other containers can reach this one by name.';
-        if (p.kind === 'publish') {
-          var bits = p.val.split(':');
-          if (bits.length === 1) d = 'Publish container port ' + bits[0] + ' on a random free host port. Find it with podman port.';
-          else {
-            var h = bits[bits.length - 2], c = bits[bits.length - 1];
-            d = 'Traffic to host port ' + h + ' is forwarded to port ' + c + ' inside the container.' + (Number(h) < 1024 ? ' Warning: host ports below 1024 fail for rootless containers.' : '');
-          }
-        }
-        var pb = p.val ? p.val.split(':') : [];
-        add(p.tok, d, p.kind === 'publish' && pb.length > 1 && Number(pb[pb.length - 2]) < 1024);
-      });
-      if (r.err) { add(r.badTok || '(missing)', r.err.replace('Error: ', 'Podman would stop here: ') + '.', true); return; }
-      var img = r.image;
-      var fq = /^[^/]+[.:][^/]*\//.test(img) || img.indexOf('localhost/') === 0;
-      add(img, 'The image to run.' + (fq ? ' Fully qualified: registry, namespace, repository' + (/:[^/]+$/.test(img) ? ' and tag.' : ', with the tag defaulting to latest.') : ' This is a short name. Podman will search its configured registries, which can be ambiguous. Prefer the full registry path.'), !fq);
-      if (r.cmd.length) add(r.cmd.join(' '), 'Run this command instead of the image\u2019s default command. The container exits when it finishes.');
-      else add('(no command)', 'The image\u2019s default command runs.');
+      var type = val('mx-type'), sel = val('mx-sel'), uid = Number(val('mx-user')), own = val('mx-own');
+      document.querySelectorAll('input[name="mx-sel"],input[name="mx-own"]').forEach(function (i) { i.disabled = type !== 'bind'; });
+      var opts = [];
+      if (type === 'bind') { if (sel) opts.push(sel); if (own === 'U') opts.push('U'); }
+      var img = uid === 1001 ? 'registry.access.redhat.com/ubi9/httpd-24' : 'registry.access.redhat.com/ubi9/ubi';
+      var mount = type === 'none' ? '' : ' -v ' + (type === 'vol' ? 'data' : './data') + ':/data' + (opts.length ? ':' + opts.join(',') : '');
+      cmd.textContent = (type === 'bind' && own === 'unshare' ? '$ podman unshare chown 1001:1001 data\n' : '') + '$ podman run -d --name app' + mount + ' ' + img;
+      var rows = [];
+      if (type === 'none') {
+        rows = [['Container reads its files', 'yes', 'It\u2019s the container\u2019s own writable layer.'], ['Container writes files', 'yes', 'Same writable layer.'], ['Data survives podman rm', 'no', 'The writable layer is deleted with the container.'], ['A second container can use the data', 'no', 'Every container has its own writable layer.'], ['You can edit the data from the host as yourself', 'no', 'It\u2019s buried in container storage, not a directory you work in.']];
+      } else if (type === 'vol') {
+        rows = [['Container reads its files', 'yes', 'Podman labels named volumes so containers can use them.'], ['Container writes files', 'yes', 'An empty volume is prepared for the container on first use.'], ['Data survives podman rm', 'yes', 'The volume is separate from the container and stays until you remove it.'], ['A second container can use the data', 'yes', 'Mount the same volume name. Be careful with apps, such as databases, that expect exclusive access.'], ['You can edit the data from the host as yourself', 'na', 'Possible through the mountpoint, but you should treat volumes as Podman-managed.']];
+      } else {
+        var seOK = sel === 'z' || sel === 'Z';
+        var ownerUid = own === 'me' ? 0 : 1001;
+        var writeOK = seOK && ownerUid === uid;
+        rows.push(['Container reads its files', seOK ? 'yes' : 'no', seOK ? 'The directory is relabeled container_file_t' + (sel === 'Z' ? ' with this container\u2019s private categories.' : ', shared by all containers.') : 'SELinux blocks container_t from user_home_t files. You\u2019d see Permission denied, or 403 from httpd.']);
+        var wWhy;
+        if (!seOK) wWhy = 'SELinux blocks access before ownership is even considered.';
+        else if (writeOK) wWhy = ownerUid === 0 ? 'Your UID maps to root inside the container, and this process runs as root.' : 'The directory is now owned by host UID 101000, which is UID 1001 inside the container.';
+        else if (ownerUid === 0) wWhy = 'The directory belongs to you, which is root inside the container, but the process runs as UID 1001. Fix it with podman unshare chown 1001:1001 data, or the :U option.';
+        else wWhy = 'The directory now belongs to container UID 1001, but this process runs as root\u2026 which in a rootless container maps to you, and you no longer own it.';
+        rows.push(['Container writes files', writeOK ? 'yes' : 'no', wWhy]);
+        rows.push(['Data survives podman rm', 'yes', 'The files live in your directory on the host.']);
+        rows.push(['A second container can use the data', sel === 'z' ? 'yes' : 'no', sel === 'z' ? 'Lowercase z gives a shared label any container may use.' : sel === 'Z' ? 'Uppercase Z gives a label private to the container that mounted it last. Use :z for sharing.' : 'Without a label, no container can use it.']);
+        rows.push(['You can edit the data from the host as yourself', ownerUid === 0 ? 'yes' : 'no', ownerUid === 0 ? 'You still own the directory. Relabeling doesn\u2019t change your access.' : 'It now belongs to a UID in your subordinate range. Work in it with podman unshare, or give it back with podman unshare chown 0:0 data.']);
+      }
+      body.textContent = '';
+      rows.forEach(function (r) { var tr = el('tr'); tr.appendChild(el('td', null, r[0])); tr.appendChild(el('td', { class: r[1] }, r[1] === 'yes' ? 'Yes' : r[1] === 'no' ? 'No' : 'Possible')); tr.appendChild(el('td', null, r[2])); body.appendChild(tr); });
     }
-    inp.addEventListener('input', render);
+    document.querySelectorAll('.mx-controls input').forEach(function (i) { i.addEventListener('change', render); });
     render();
   })();
 
-  /* ================= lifecycle ================= */
-  (function () {
-    var st = 'none', out = document.getElementById('lc-out');
-    var OPS = {
-      create: { from: ['none'], to: 'created', msg: 'The container exists with its writable layer and settings, but no process has started.', bad: 'A container named demo already exists. Remove it first, or choose another name.' },
-      start: { from: ['created', 'exited'], to: 'running', msg: 'The main process is running.', bad: 'Nothing to start in this state.' },
-      pause: { from: ['running'], to: 'paused', msg: 'Every process in the container is frozen by the cgroup freezer.', bad: 'Error: "demo" is not running, can\u2019t pause: container state improper' },
-      unpause: { from: ['paused'], to: 'running', msg: 'The processes resume exactly where they left off.', bad: 'Error: "demo" is not paused, can\u2019t unpause: container state improper' },
-      stop: { from: ['running', 'paused'], to: 'exited', msg: 'SIGTERM sent, then SIGKILL if needed after 10 seconds. Status: Exited (0). Logs and the writable layer are kept.', bad: 'Already stopped. podman stop just prints the name and does nothing.' },
-      kill: { from: ['running', 'paused'], to: 'exited', msg: 'SIGKILL sent immediately. Status: Exited (137). The app had no chance to shut down cleanly.', bad: 'Error: can only kill running containers: container state improper' },
-      rm: { from: ['created', 'exited'], to: 'none', msg: 'Removed, along with its writable layer and logs.', bad: 'Error: cannot remove container as it is running - running or paused containers cannot be removed without force: container state improper' },
-      rmf: { from: ['created', 'exited', 'running', 'paused'], to: 'none', msg: 'Force removal stops the container first if needed, then removes it.', bad: 'Error: no container with name or ID "demo" found: no such container' }
-    };
-    function paint() {
-      document.querySelectorAll('#lc-states li').forEach(function (li) {
-        if (li.getAttribute('data-st') === st) li.setAttribute('aria-current', 'true'); else li.removeAttribute('aria-current');
-      });
-    }
-    document.querySelectorAll('#lc-actions button').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var k = b.getAttribute('data-op'), op = OPS[k];
-        var cmd = 'podman ' + (k === 'create' ? 'create --name demo registry.access.redhat.com/ubi9/httpd-24' : (k === 'rmf' ? 'rm -f demo' : k + ' demo'));
-        out.textContent = '';
-        out.appendChild(el('code', null, '$ ' + cmd)); out.appendChild(el('br'));
-        if (k === 'start' && st === 'running') { out.appendChild(document.createTextNode('Already running. podman start prints the name and changes nothing.')); return; }
-        if (k === 'rm' && st === 'none') { out.appendChild(document.createTextNode(OPS.rmf.bad)); return; }
-        if (op.from.indexOf(st) === -1) { out.appendChild(document.createTextNode(op.bad)); return; }
-        st = op.to; paint();
-        out.appendChild(document.createTextNode(op.msg));
-      });
-    });
-    paint();
-  })();
-
-  /* ================= practice terminal ================= */
+  /* practice terminal */
   NETWSIM.create({
-    intro: 'Rootless Podman practice terminal. A file named index.html is in your home directory. Type help for the command list, or start with mission 1.',
-    doneMsg: 'You\u2019re ready for the Chapter 2 lab.',
+    intro: 'Rootless Podman practice terminal. A directory named site, containing index.html, is in your home directory. Type help for the command list, or start with mission 1.',
+    doneMsg: 'You\u2019re ready for the Chapter 5 lab.',
+    hostDirs: { site: { owner: 0, label: 'user_home_t', files: { 'index.html': '<h1>Served from a bind mount</h1>' } } },
     missions: function (api) {
-    var HTTPD = 'registry.access.redhat.com/ubi9/httpd-24:latest';
-    return [
-    { t: 'Pull the Apache HTTP Server image', h: 'podman pull registry.access.redhat.com/ubi9/httpd-24', ok: function () { return !!api.S().images[HTTPD]; } },
-    { t: 'Run it in the background as web, with host port 8080 sent to container port 8080', h: 'podman run -d --name web -p 8080:8080 registry.access.redhat.com/ubi9/httpd-24', ok: function () { var c = api.find('web'); return c && c.state === 'running' && c.kind === 'httpd' && c.ports.some(function (p) { return p.h === 8080 && p.c === 8080; }); } },
-    { t: 'Prove the server answers from the host', h: 'curl http://localhost:8080', ok: function (l, ok) { return ok && /^curl\s/.test(l) && /localhost:8080|127\.0\.0\.1:8080/.test(l); } },
-    { t: 'Serve your own page: copy index.html into the web root and fetch it again', h: 'podman cp index.html web:/var/www/html/  then  curl http://localhost:8080', ok: function (l, ok) { var c = api.find('web'); return ok && c && api.read(c, '/var/www/html/index.html').content != null && /^curl\s/.test(l); } },
-    { t: 'Read the web container\u2019s logs and find your requests', h: 'podman logs web', ok: function (l, ok) { return ok && /^podman logs\b.*\bweb\b/.test(l); } },
-    { t: 'Ask the container who it runs as, using exec', h: 'podman exec web whoami', ok: function (l, ok) { return ok && /^podman exec\b.*\bweb\b.*\b(whoami|id)\b/.test(l); } },
-    { t: 'Print only the web container\u2019s status with inspect and a format template', h: 'podman inspect --format \'{{.State.Status}}\' web', ok: function (l, ok) { return ok && /^podman inspect\b/.test(l) && /--format|-f\b/.test(l) && /State\.Status/.test(l); } },
-    { t: 'Create a network named app-net, run a second httpd named web2 on it, and reach web2 by name from another container on the same network', h: 'podman network create app-net\npodman run -d --name web2 --network app-net registry.access.redhat.com/ubi9/httpd-24\npodman run --rm --network app-net registry.access.redhat.com/ubi9/ubi curl -s http://web2:8080', ok: function (l, ok) { return ok && /curl/.test(l) && /web2:8080/.test(l) && /app-net/.test(l + (api.find('web2') ? api.find('web2').network : '')); } },
-    { t: 'Clean up: stop and remove web, then confirm with ps -a', h: 'podman stop web\npodman rm web\npodman ps -a', ok: function (l) { return /^podman (ps|container ls)\b.*(-a|--all)/.test(l) && !api.find('web') && NETW.state.sim && NETW.state.sim['m1']; } }
-  ];
+      function c(n) { return api.find(n); }
+      function hasMount(ct, type, src) { return ct && ct.mounts.some(function (m) { return m.type === type && m.src === src && m.dst === '/var/www/html'; }); }
+      return [
+        { t: 'Create a named volume called web-data', h: 'podman volume create web-data', ok: function () { return !!api.S().vols['web-data']; } },
+        { t: 'Run httpd as web on port 8080 with web-data mounted at /var/www/html', h: 'podman run -d --name web -p 8080:8080 -v web-data:/var/www/html registry.access.redhat.com/ubi9/httpd-24', ok: function () { var w = c('web'); return w && w.state === 'running' && hasMount(w, 'volume', 'web-data') && w.ports.some(function (p) { return p.h === 8080; }); } },
+        { t: 'From inside web, write an index.html into the volume', h: 'podman exec web sh -c \'echo "<h1>Hello from a volume</h1>" > /var/www/html/index.html\'', ok: function () { var v = api.S().vols['web-data']; return !!(v && v.files['index.html'] != null); } },
+        { t: 'Destroy web, start a brand-new web with the same volume, and curl the page', h: 'podman rm -f web\npodman run -d --name web -p 8080:8080 -v web-data:/var/www/html registry.access.redhat.com/ubi9/httpd-24\ncurl http://localhost:8080', ok: function (l, ok) { var r = api.S().flags['rm:web']; return ok && r && r.indexOf('web-data') > -1 && /^curl\b/.test(l) && /8080/.test(l) && hasMount(c('web'), 'volume', 'web-data'); } },
+        { t: 'Find where the volume\u2019s data lives on the host', h: 'podman volume inspect web-data', ok: function (l, ok) { return ok && /^podman volume inspect\b/.test(l) && /web-data/.test(l); } },
+        { t: 'Bind-mount ./site into a container named site on port 8081 with no label, and see SELinux block it', h: 'podman run -d --name site -p 8081:8080 -v ./site:/var/www/html registry.access.redhat.com/ubi9/httpd-24\ncurl http://localhost:8081\nls -ldZ site', ok: function (l) { return api.S().flags.selinux && /^curl\b/.test(l) && /8081/.test(l); } },
+        { t: 'Recreate site with the :Z option and get your page back', h: 'podman rm -f site\npodman run -d --name site -p 8081:8080 -v ./site:/var/www/html:Z registry.access.redhat.com/ubi9/httpd-24\ncurl http://localhost:8081', ok: function (l, ok) { var s = c('site'); return ok && /^curl\b/.test(l) && /8081/.test(l) && s && s.mounts.some(function (m) { return m.type === 'bind' && /Z|z/.test(m.opts.join('')); }) && api.read(s, '/var/www/html/index.html').content != null; } },
+        { t: 'Make the bind mount writable for the httpd user (UID 1001), then create a file from inside site', h: 'podman exec site touch /var/www/html/new.html     (fails: why?)\npodman unshare chown 1001:1001 site\npodman exec site touch /var/www/html/new.html\n  or recreate site with -v ./site:/var/www/html:Z,U', ok: function () { var d = api.S().dirs.site; return d && Object.keys(d.files).some(function (f) { return f !== 'index.html'; }); } },
+        { t: 'Clean up: remove both containers and the web-data volume', h: 'podman rm -f web site\npodman volume rm web-data', ok: function () { return api.S().flags['volrm:web-data'] && !c('web') && !c('site'); } }
+      ];
     }
   });
 
-
-  /* quiz */
   NETW.quiz(document.getElementById('quiz'), [
-    { q: 'You run podman run -d registry.access.redhat.com/ubi9/ubi, but podman ps shows nothing. Why?',
-      choices: [{ t: 'The default command is a shell that exits immediately with no terminal, so the container exited', ok: true }, { t: 'Detached containers only appear in podman images' }, { t: 'The image failed to pull silently' }, { t: 'Rootless containers are hidden from podman ps' }],
-      why: 'A container lives only as long as its main process. podman ps -a would show it as Exited (0).' },
-    { q: 'In -p 9090:8080, which number is the port inside the container?',
-      choices: [{ t: '8080', ok: true }, { t: '9090' }, { t: 'Both; they must match' }, { t: 'Neither; it sets a range' }],
-      why: 'The format is host:container. Traffic to host port 9090 is forwarded to port 8080 in the container.' },
-    { q: 'As a regular user you run podman run -d -p 80:8080 with the httpd image. What happens?',
-      choices: [{ t: 'It fails, because rootless containers cannot publish host ports below 1024 by default', ok: true }, { t: 'It works, but only over IPv6' }, { t: 'Podman silently uses port 8080 instead' }, { t: 'It works because the container runs as root inside' }],
-      why: 'Ports below net.ipv4.ip_unprivileged_port_start (1024 by default) need privileges your user lacks. Choose a host port of 1024 or higher.' },
-    { q: 'Which command runs a new process inside a container that is already running?',
-      choices: [{ t: 'podman exec', ok: true }, { t: 'podman run' }, { t: 'podman start' }, { t: 'podman attach' }],
-      why: 'podman exec starts an additional process in the running container\u2019s namespaces. podman run always creates a new container.' },
-    { q: 'What is the difference between podman stop and podman kill?',
-      choices: [{ t: 'stop sends SIGTERM and waits before SIGKILL; kill sends SIGKILL right away', ok: true }, { t: 'stop pauses the container; kill removes it' }, { t: 'kill keeps the logs and stop deletes them' }, { t: 'There is no difference' }],
-      why: 'stop gives the app a grace period (10 seconds by default) to shut down cleanly. kill ends it immediately, usually with exit code 137.' },
-    { q: 'Two containers on the default podman network try to reach each other by container name, and name resolution fails. What\u2019s the best fix?',
-      choices: [{ t: 'Create a network with podman network create and attach both containers to it', ok: true }, { t: 'Publish both containers\u2019 ports with -p' }, { t: 'Hard-code each container\u2019s IP address' }, { t: 'Run both containers as root' }],
-      why: 'User-defined networks have DNS enabled, so containers can use each other\u2019s names. The default network does not resolve names, and IP addresses change when containers are recreated.' },
-    { q: 'Which command prints only whether the container named db is running, exited or created?',
-      choices: [{ t: 'podman inspect --format \'{{.State.Status}}\' db', ok: true }, { t: 'podman logs --status db' }, { t: 'podman ps --name db --short' }, { t: 'podman port db' }],
-      why: 'inspect with a Go template pulls a single field from the JSON. The other commands either don\u2019t exist in that form or return something else.' },
-    { q: 'You try podman rm web and get "cannot remove container ... as it is running". Which commands would remove it?',
-      choices: [{ t: 'podman stop web, then podman rm web; or podman rm -f web', ok: true }, { t: 'podman rmi web' }, { t: 'podman kill web --remove-image' }, { t: 'podman network rm web' }],
-      why: 'A running container must be stopped first, or removed with force. rmi removes images, not containers.' }
+    { q: 'You run podman run -d -v appdata:/data IMAGE. What is appdata?',
+      choices: [{ t: 'A named volume, created automatically if it doesn\u2019t exist', ok: true }, { t: 'The directory appdata in your current working directory' }, { t: 'A file inside the image' }, { t: 'An error, because appdata isn\u2019t an absolute path' }],
+      why: 'A source without a leading / or ./ is a volume name. To bind-mount a directory, write ./appdata or a full path.' },
+    { q: 'A bind-mounted directory from your home folder gives Permission denied inside the container, though ls -l shows it is readable by everyone. What is the most likely cause?',
+      choices: [{ t: 'Its SELinux label is user_home_t, which container processes can\u2019t access', ok: true }, { t: 'The container image is too old' }, { t: 'Bind mounts only work as root' }, { t: 'The port isn\u2019t published' }],
+      why: 'SELinux denials look like ordinary permission errors. Add :Z or :z so Podman relabels the directory as container_file_t.' },
+    { q: 'Two containers must both read and write the same bind-mounted directory. Which option should each use?',
+      choices: [{ t: ':z', ok: true }, { t: ':Z' }, { t: ':ro' }, { t: ':U' }],
+      why: 'Lowercase z applies a shared label. Uppercase Z gives a private label, so the second container to mount it would lock the first one out.' },
+    { q: 'In a rootless container, which host UID does container root map to?',
+      choices: [{ t: 'Your own UID, the user who ran podman', ok: true }, { t: 'Host root, UID 0' }, { t: 'UID 65534 (nobody)' }, { t: 'The first UID in your subordinate range' }],
+      why: 'Container UID 0 maps to you. UIDs 1 and above map into your /etc/subuid range.' },
+    { q: 'The MariaDB image runs as UID 27 and can\u2019t write to ./dbdata, which you created. Which command fixes ownership?',
+      choices: [{ t: 'podman unshare chown 27:27 dbdata', ok: true }, { t: 'sudo chown 27:27 dbdata' }, { t: 'chmod 777 dbdata' }, { t: 'podman volume create dbdata' }],
+      why: 'podman unshare runs chown inside your user namespace, so container UID 27 is translated to the right host UID (100026 here). sudo chown 27 would pick the wrong host user.' },
+    { q: 'Which statement about podman volume prune is true?',
+      choices: [{ t: 'It deletes every volume not referenced by any container, running or stopped', ok: true }, { t: 'It only deletes empty volumes' }, { t: 'It deletes volumes older than 30 days' }, { t: 'It moves volumes to a trash folder you can restore from' }],
+      why: 'Unused volumes are removed permanently. Back up with podman volume export first if you\u2019re unsure.' },
+    { q: 'Why add :ro when mounting a configuration file into a container?',
+      choices: [{ t: 'The container can read the file but cannot change it', ok: true }, { t: 'It makes the file load faster' }, { t: 'It relabels the file for SELinux' }, { t: 'It encrypts the file' }],
+      why: 'Read-only mounts protect host files from a misbehaving or compromised container. You still need :Z or :z for SELinux.' },
+    { q: 'You remove a database container and run a new one with the same named volume. What happens to the data?',
+      choices: [{ t: 'It\u2019s still there, and the image skips first-run initialization', ok: true }, { t: 'It\u2019s wiped because the image reinitializes the database' }, { t: 'It\u2019s copied into the new container\u2019s writable layer' }, { t: 'It\u2019s read-only until you run podman volume import' }],
+      why: 'The volume is independent of any container. Database images check for existing data before initializing.' }
   ]);
 })();
 </script>

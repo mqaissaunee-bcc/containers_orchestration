@@ -165,6 +165,9 @@ td code{font-family:var(--mono);font-size:.86rem}
 .site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
 .site-foot p{margin:0 0 var(--s2);max-width:80ch}
 @media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+/* beyond red hat */
+.unit.beyond>h2::after{content:"";flex:1;height:2px;margin-left:var(--s3);align-self:center;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
+.eco-tag{display:inline-block;font:600 .78rem var(--sans);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.1rem .55rem;margin-bottom:var(--s3)}
 
 /* terminal */
 .sim{display:grid;grid-template-columns:1fr;gap:var(--s5)}
@@ -254,6 +257,7 @@ td.steady{color:var(--ok);font-weight:600}
         <li><a href="#share">Tagging, pushing and copying</a></li>
         <li><a href="#local">Managing local storage</a></li>
         <li><a href="#practice">Practice terminal</a></li>
+        <li><a href="#beyond">Beyond Red Hat</a></li>
         <li><a href="#check">Knowledge check</a></li>
         <li><a href="#lab">Lab bridge</a></li>
         <li><a href="#cheat">Cheat sheet</a></li>
@@ -437,14 +441,44 @@ quay.io/student/myubi                v1    4c1b2e7f90aa  …</span>
     </div>
   </section>
 
+  <section class="unit beyond" id="beyond" data-unit>
+    <h2><span class="n">9</span>Beyond Red Hat</h2>
+    <p class="eco-tag">Other registries and image tools</p>
+    <div class="table-wrap"><table>
+      <caption class="vh">Container registries outside Red Hat</caption>
+      <thead><tr><th scope="col">Registry</th><th scope="col">Host name</th><th scope="col">Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Docker Hub</td><td><code>docker.io</code></td><td>The largest public registry and Docker's default. "Official images" live in the <code>library</code> namespace, so <code>nginx</code> means <code>docker.io/library/nginx</code>. Anonymous pulls are rate-limited.</td></tr>
+        <tr><td>GitHub Container Registry</td><td><code>ghcr.io</code></td><td>Images stored next to the code that builds them, with GitHub permissions.</td></tr>
+        <tr><td>Amazon ECR, Google Artifact Registry, Azure Container Registry</td><td>Per-account host names</td><td>Private registries in each cloud, integrated with that cloud's identity and Kubernetes service.</td></tr>
+        <tr><td>GitLab Container Registry</td><td>Your GitLab host</td><td>Built into GitLab projects and CI pipelines.</td></tr>
+        <tr><td>Harbor</td><td>Self-hosted</td><td>A CNCF project for running your own registry, with scanning and replication. Project Quay is the self-hosted version of quay.io.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn"><span class="label">Docker-style short names</span>
+      <p>Tutorials written for Docker say <code>FROM nginx</code> or <code>docker pull redis</code>, relying on Docker's default of Docker Hub. With Podman, write the full name, <code>docker.io/library/nginx</code>, or Podman may search a different registry first.</p></div>
+    <div class="prose">
+      <h3>Tools that do what Skopeo does</h3>
+      <ul>
+        <li><strong>crane</strong> (from Google's go-containerregistry) and <strong>regctl</strong> inspect and copy images between registries.</li>
+        <li><strong>oras</strong> stores other artifacts, such as Helm charts or signatures, in OCI registries.</li>
+      </ul>
+      <h3>Trusting images</h3>
+      <ul>
+        <li><strong>Signing:</strong> Sigstore's <code>cosign</code> signs images and verifies signatures. Podman and Skopeo can enforce signature policies too.</li>
+        <li><strong>Scanning:</strong> Trivy, Grype and Clair (built into Quay) list known vulnerabilities in an image's packages. Many teams run a scanner in their build pipeline and block images with critical findings.</li>
+      </ul>
+    </div>
+  </section>
+
   <section class="unit" id="check" data-unit>
-    <h2><span class="n">9</span>Knowledge check</h2>
+    <h2><span class="n">10</span>Knowledge check</h2>
     <p class="hint">Eight questions, answer order shuffled each time. Practice only; not graded.</p>
     <div id="quiz"></div>
   </section>
 
   <section class="unit" id="lab" data-unit>
-    <h2><span class="n">10</span>Lab bridge</h2>
+    <h2><span class="n">11</span>Lab bridge</h2>
     <div class="bridge">
       <h3>Your graded lab: DO188 Chapter 3 in the OLE</h3>
       <p class="prose">Complete the Chapter 3 guided exercises, then the end-of-chapter lab. It is graded on completion and correctness.</p>
@@ -466,7 +500,7 @@ quay.io/student/myubi                v1    4c1b2e7f90aa  …</span>
   </section>
 
   <section class="unit" id="cheat" data-unit>
-    <h2><span class="n">11</span>Cheat sheet</h2>
+    <h2><span class="n">12</span>Cheat sheet</h2>
     <div class="table-wrap"><table>
       <caption class="vh">Images and registries command reference</caption>
       <thead><tr><th scope="col">Task</th><th scope="col">Command</th></tr></thead>
@@ -740,7 +774,7 @@ var NETWSIM = (function () {
     var NOUN = ['turing', 'hopper', 'lovelace', 'torvalds', 'ritchie', 'hamilton', 'knuth', 'liskov', 'shannon', 'babbage'];
     var S;
     function fresh() {
-      return { images: {}, ctrs: [], nets: { podman: { id: '2f259bab93aa', dns: false, subnet: '10.88.0' } }, ipn: 2, files: Object.assign({ 'index.html': '<h1>Hello from NETW 112</h1>' }, cfg.files || {}), remote: {}, auth: {}, archives: {}, flags: {}, last: null };
+      return { images: {}, ctrs: [], nets: { podman: { id: '2f259bab93aa', dns: false, subnet: '10.88.0' } }, ipn: 2, files: Object.assign({ 'index.html': '<h1>Hello from NETW 112</h1>' }, cfg.files || {}), remote: {}, auth: {}, archives: {}, flags: {}, vols: {}, dirs: JSON.parse(JSON.stringify(cfg.hostDirs || {})), last: null };
     }
     S = fresh();
     var logEl = document.getElementById('t-log'), inEl = document.getElementById('t-in');
@@ -846,6 +880,42 @@ var NETWSIM = (function () {
       if (c.rm) S.ctrs.splice(S.ctrs.indexOf(c), 1);
     }
   
+    /* ---------- filesystem model ---------- */
+    function dirName(p) { return p.replace(/^\/home\/student\//, '').replace(/^~\//, '').replace(/^\.\//, '').replace(/\/$/, ''); }
+    function procUid(c) { if (c.user != null) return Number(String(c.user).split(':')[0]) || 0; return c.kind === 'httpd' ? 1001 : 0; }
+    function hostUid(u) { return u === 0 ? 'student' : String(100000 + u - 1); }
+    function normPath(p) { var out = []; p.split('/').forEach(function (x) { if (!x || x === '.') return; if (x === '..') out.pop(); else out.push(x); }); return '/' + out.join('/'); }
+    function resolveFs(c, path) {
+      path = normPath(path);
+      var ms = c.mounts.slice().sort(function (a, b) { return b.dst.length - a.dst.length; });
+      for (var i = 0; i < ms.length; i++) {
+        var m = ms[i];
+        if (path === m.dst || path.indexOf(m.dst + '/') === 0) {
+          var store = m.type === 'volume' ? S.vols[m.src].files : S.dirs[m.src].files;
+          return { store: store, rel: path === m.dst ? '' : path.slice(m.dst.length + 1), m: m, path: path };
+        }
+      }
+      if (path === '/var/www/html' || path.indexOf('/var/www/html/') === 0) return { store: c.files, rel: path === '/var/www/html' ? '' : path.slice(14), m: null, path: path };
+      return { store: c.fs, rel: path, m: null, path: path };
+    }
+    function denied(c, r, write) {
+      if (!r.m) return null;
+      if (write && r.m.opts.indexOf('ro') > -1) return 'Read-only file system';
+      if (r.m.type !== 'bind') return null;
+      var d = S.dirs[r.m.src];
+      if (d.label === 'user_home_t' || (d.label && d.label.Z && d.label.Z !== c.id)) { S.flags.selinux = true; return 'Permission denied'; }
+      if (write && d.owner !== procUid(c)) { S.flags.ownerDenied = true; return 'Permission denied'; }
+      return null;
+    }
+    function readFile(c, path) { var r = resolveFs(c, path), e = denied(c, r, false); if (e) return { err: e }; return r.store[r.rel] != null ? { content: r.store[r.rel] } : { missing: true }; }
+    function writeFile(c, path, content, append, force) {
+      var r = resolveFs(c, path), e = force ? null : denied(c, r, true); if (e) return e;
+      if (!r.rel) return 'Is a directory';
+      r.store[r.rel] = append && r.store[r.rel] != null ? r.store[r.rel] + '\n' + content : content; return null;
+    }
+    function listDir(c, path) { var r = resolveFs(c, path), e = denied(c, r, false); if (e) return { err: e }; var pre = r.rel ? r.rel + '/' : ''; return { names: Object.keys(r.store).filter(function (k) { return k.indexOf(pre) === 0 && k.slice(pre.length).indexOf('/') === -1 && k !== r.rel; }).map(function (k) { return k.slice(pre.length); }) }; }
+    function labelText(d) { return d.label === 'user_home_t' ? 'unconfined_u:object_r:user_home_t:s0' : d.label === 'shared' ? 'system_u:object_r:container_file_t:s0' : 'system_u:object_r:container_file_t:s0:' + d.label.mcs; }
+
     /* processes inside a container */
     function curl(from, url) {
       var u = url.replace(/^https?:\/\//, ''), hostport = u.split('/')[0], path = '/' + u.split('/').slice(1).join('/');
@@ -866,9 +936,15 @@ var NETWSIM = (function () {
       if (target.kind !== 'httpd' || target.cmd.length) return { err: 'curl: (7) Failed to connect to ' + host + ' port ' + port + ': Connection refused' };
       var file = path === '/' ? 'index.html' : path.replace(/^\/+/, '');
       var src = from === 'host' ? '10.88.0.1' : ip(from);
-      if (target.files[file] != null) {
-        target.logs.push(src + ' - - [' + stamp() + '] "GET ' + path + ' HTTP/1.1" 200 ' + target.files[file].length + ' "-" "curl/7.76.1"');
-        return { out: [target.files[file]] };
+      var rf = readFile(target, '/var/www/html/' + file);
+      if (rf.err) {
+        target.logs.push('[' + stamp() + '] [core:error] [pid 28:tid 28] (13)Permission denied: [client ' + src + '] AH00035: access to /' + (path === '/' ? 'index.html' : file) + ' denied because search permissions are missing on a component of the path');
+        target.logs.push(src + ' - - [' + stamp() + '] "GET ' + path + ' HTTP/1.1" 403 199 "-" "curl/7.76.1"');
+        return { out: ['<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">', '<html><head><title>403 Forbidden</title></head><body>', '<h1>Forbidden</h1>', '<p>You don\'t have permission to access this resource.</p>', '</body></html>'], note: 'httpd got "Permission denied" reading the mounted directory. Check podman logs, and think about SELinux labels.' };
+      }
+      if (rf.content != null) {
+        target.logs.push(src + ' - - [' + stamp() + '] "GET ' + path + ' HTTP/1.1" 200 ' + rf.content.length + ' "-" "curl/7.76.1"');
+        return { out: [rf.content] };
       }
       target.logs.push(src + ' - - [' + stamp() + '] "GET ' + path + ' HTTP/1.1" 403 ' + 7620 + ' "-" "curl/7.76.1"');
       return { out: ['<!doctype html>', '<html>', '  <head><title>Test Page for the HTTP Server on Red Hat Enterprise Linux</title></head>', '  ...', '</html>'], note: 'Status 403 with the Red Hat test page is normal: the web root is empty. Try copying index.html into the container.' };
@@ -889,18 +965,28 @@ var NETWSIM = (function () {
         case 'cat':
           if (a[0] === '/etc/redhat-release') return { out: ['Red Hat Enterprise Linux release 9.4 (Plow)'] };
           if (a[0] === '/etc/os-release') return { out: ['NAME="Red Hat Enterprise Linux"', 'VERSION="9.4 (Plow)"', 'ID="rhel"', 'ID_LIKE="fedora"', 'VERSION_ID="9.4"', 'PRETTY_NAME="Red Hat Enterprise Linux 9.4 (Plow)"'] };
-          if (a[0] && a[0].indexOf('/var/www/html/') === 0 && c.files[a[0].slice(14)] != null) return { out: [c.files[a[0].slice(14)]] };
+          if (a[0]) { var rc = readFile(c, a[0]); if (rc.err) return { err: 'cat: ' + a[0] + ': ' + rc.err, code: 1 }; if (rc.content != null) return { out: rc.content.split('\n') }; }
           return { err: 'cat: ' + (a[0] || '') + ': No such file or directory', code: 1 };
         case 'ls':
-          if (!a[0] || a[0] === '/') return { out: ['afs  bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var'] };
-          if (a[0].replace(/\/$/, '') === '/var/www/html') return { out: [Object.keys(c.files).join('  ')] };
+          var lp = a.filter(function (x) { return x[0] !== '-'; })[0];
+          if (!lp || lp === '/') return { out: ['afs  bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var'] };
+          var mnt = resolveFs(c, lp);
+          if (mnt.m || mnt.path === '/var/www/html') { var ld = listDir(c, lp); if (ld.err) return { err: 'ls: cannot open directory \'' + lp + '\': ' + ld.err, code: 2 }; return { out: ld.names.length ? [ld.names.join('  ')] : [] }; }
           return { err: 'ls: cannot access \'' + a[0] + '\': No such file or directory', code: 2 };
         case 'ps':
           if (isHttpd && !c.cmd.length) return { out: ['    PID TTY          TIME CMD', '      1 ?        00:00:00 httpd', '     28 ?        00:00:00 httpd', '     29 ?        00:00:00 httpd', '     52 ?        00:00:00 ps'] };
           return { out: ['    PID TTY          TIME CMD', '      1 ?        00:00:00 ' + (c.cmd[0] || 'bash'), '      7 ?        00:00:00 ps'] };
         case 'curl': var target = a.filter(function (x) { return x[0] !== '-'; })[0]; return target ? curl(c, target) : { err: 'curl: try \'curl --help\' for more information', code: 2 };
         case 'sleep': return { out: [] };
-        case 'bash': case 'sh': return { out: [], note: 'An interactive shell would open here (bash-5.1' + (isHttpd ? '$' : '#') + '). The simulator skips interactive sessions; run single commands with exec instead, for example: podman exec ' + c.name + ' ls /var/www/html' };
+        case 'touch': if (!a[0]) return { err: 'touch: missing file operand', code: 1 }; var te = writeFile(c, a[0], '', false); return te ? { err: 'touch: cannot touch \'' + a[0] + '\': ' + te, code: 1 } : { out: [] };
+        case 'mkdir': return { out: [] };
+        case 'bash': case 'sh':
+          if (a[0] === '-c' && a[1] != null) {
+            var inner = a[1].trim(), rd = inner.match(/^echo\s+([\s\S]*?)\s*(>>?)\s*(\S+)$/);
+            if (rd) { var txt = rd[1].replace(/^(["'])([\s\S]*)\1$/, '$2'); var we = writeFile(c, rd[3], txt, rd[2] === '>>'); return we ? { err: (cmd === 'sh' ? 'sh' : 'bash') + ': line 1: ' + rd[3] + ': ' + we, code: 1 } : { out: [] }; }
+            return inside(c, tokenize(inner));
+          }
+          return { out: [], note: 'An interactive shell would open here (bash-5.1' + (isHttpd ? '$' : '#') + '). The simulator skips interactive sessions; run single commands with exec instead, for example: podman exec ' + c.name + ' ls /var/www/html' };
         case 'exit': case 'true': return { out: [] };
         default: return { err: 'Error: crun: executable file `' + args[0] + '` not found in $PATH: No such file or directory: OCI runtime attempted to invoke a command that was not found', code: 127 };
       }
@@ -931,13 +1017,32 @@ var NETWSIM = (function () {
         ports.push({ h: h, c: c });
       }
       if (o.memory && !/^\d+[kmg]?b?$/i.test(o.memory)) return err('Error: invalid argument "' + o.memory + '" for "-m, --memory" flag');
+      var mounts = [];
+      for (var mi = 0; mi < o.volume.length; mi++) {
+        var mp = o.volume[mi].split(':'), msrc = mp[0], mdst = mp[1], mopt = (mp[2] || '').split(',').filter(Boolean);
+        if (!mdst) return err('Error: invalid volume specification "' + o.volume[mi] + '"   [simulator] use SOURCE:/container/path[:OPTIONS]');
+        if (mdst[0] !== '/') return err('Error: invalid container path "' + mdst + '", must be an absolute path');
+        var bad = mopt.filter(function (x) { return ['z', 'Z', 'U', 'ro', 'rw'].indexOf(x) === -1; })[0];
+        if (bad) return err('Error: invalid option type: "' + bad + '"   [simulator] supported options: z, Z, U, ro');
+        var isBind = /^[.\/~]/.test(msrc);
+        if (isBind) {
+          var dn = dirName(msrc);
+          if (!S.dirs[dn]) return err('Error: statfs ' + (msrc[0] === '/' ? msrc : '/home/student/' + msrc.replace(/^\.\//, '').replace(/^~\//, '')) + ': no such file or directory');
+          mounts.push({ type: 'bind', src: dn, dst: mdst.replace(/\/$/, ''), opts: mopt });
+        } else {
+          if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(msrc)) return err('Error: invalid volume name "' + msrc + '"');
+          mounts.push({ type: 'volume', src: msrc, dst: mdst.replace(/\/$/, ''), opts: mopt });
+        }
+      }
       if (!S.images[img.key]) pull(img);
+      mounts.forEach(function (m) { if (m.type === 'volume' && !S.vols[m.src]) S.vols[m.src] = { files: {}, created: new Date().toISOString() }; });
       var ctr = {
         id: hex(64), name: o.name || ADJ[Math.floor(Math.random() * 10)] + '_' + NOUN[Math.floor(Math.random() * 10)],
         image: img.key, kind: img.meta.kind, cmd: r.cmd, defcmd: img.meta.cmd, env: o.env.map(function (e) { return e.indexOf('=') > -1 ? e : e + '='; }),
         ports: ports, network: net, ipn: S.ipn++, rm: !!o.rm, detach: !!o.detach, interactive: !!(o.interactive && o.tty),
-        state: 'created', code: 0, created: Date.now(), logs: [], files: {}
+        state: 'created', code: 0, created: Date.now(), logs: [], files: {}, fs: {}, mounts: mounts, user: o.user || null
       };
+      mounts.forEach(function (m) { if (m.type !== 'bind') return; var d = S.dirs[m.src]; if (m.opts.indexOf('Z') > -1) d.label = { Z: ctr.id, mcs: 'c' + (100 + Math.floor(Math.random() * 900)) + ',c' + (100 + Math.floor(Math.random() * 900)) }; else if (m.opts.indexOf('z') > -1) d.label = 'shared'; if (m.opts.indexOf('U') > -1) d.owner = procUid(ctr); });
       S.ctrs.push(ctr);
       if (create) { print(ctr.id); return true; }
       return startCtr(ctr, true);
@@ -1045,7 +1150,7 @@ var NETWSIM = (function () {
       if (all && !args.length) return true;
       return each(args, function (c, ref) {
         if (c.state === 'running' && !force) return err('Error: cannot remove container ' + c.id + ' as it is running - running or paused containers cannot be removed without force: container state improper');
-        S.ctrs.splice(S.ctrs.indexOf(c), 1); print(all ? c.id : ref);
+        S.ctrs.splice(S.ctrs.indexOf(c), 1); S.flags['rm:' + c.name] = c.mounts.map(function (m) { return m.src; }); print(all ? c.id : ref);
       });
     };
     P.logs = function (args) {
@@ -1081,11 +1186,12 @@ var NETWSIM = (function () {
         '.State.Status': c.state, '.State.Running': String(c.state === 'running'), '.State.ExitCode': String(c.code),
         '.Name': c.name, '.Id': c.id, '.ImageName': c.image, '.Config.Image': c.image,
         '.NetworkSettings.IPAddress': c.network === 'podman' && c.state === 'running' ? ip(c) : '',
-        '.HostConfig.NetworkMode': c.network === 'podman' ? 'bridge' : c.network
+        '.HostConfig.NetworkMode': c.network === 'podman' ? 'bridge' : c.network,
+        '.Mounts': '[' + c.mounts.map(function (m) { return '{' + m.type + ' ' + (m.type === 'bind' ? '/home/student/' + m.src : m.src) + ' ' + m.dst + ' ' + (m.opts.join(',') || 'rw') + '}'; }).join(' ') + ']'
       };
       if (fmt) {
         var m = fmt.match(/^\{\{\s*([.\w]+)\s*\}\}$/);
-        if (!m) return err('Error: template: inspect:1: unsupported in simulator. Try {{.State.Status}}, {{.State.ExitCode}}, {{.NetworkSettings.IPAddress}}, {{.Name}}');
+        if (!m) return err('Error: template: inspect:1: unsupported in simulator. Try {{.State.Status}}, {{.State.ExitCode}}, {{.NetworkSettings.IPAddress}}, {{.Mounts}}, {{.Name}}');
         if (!(m[1] in F)) return err('Error: template: inspect:1:' + (m[1].length + 3) + ': executing "inspect" at <' + m[1] + '>: can\'t evaluate field ' + m[1].split('.').pop() + '   [simulator] try {{.State.Status}}');
         print(F[m[1]]);
         if (m[1] === '.NetworkSettings.IPAddress' && c.network !== 'podman') note('Containers on a user-defined network report their address under .NetworkSettings.Networks instead.');
@@ -1110,10 +1216,9 @@ var NETWSIM = (function () {
         if (!c) return noSuch(name);
         var fname = src.split('/').pop();
         if (S.files[fname] == null) return err('Error: "' + src + '" could not be found on the host: no such file or directory');
-        var p = path.replace(/\/$/, '');
-        if (p === '/var/www/html') c.files[fname] = S.files[fname];
-        else if (p.indexOf('/var/www/html/') === 0) c.files[p.slice(14)] = S.files[fname];
-        else { note('Copied, but the simulator only tracks files under /var/www/html.'); }
+        var p = path.replace(/\/$/, ''), rr = resolveFs(c, p);
+        var target = (rr.m || rr.path === '/var/www/html') && rr.rel === '' ? p + '/' + fname : p;
+        writeFile(c, target, S.files[fname], false, true);
         return true;
       }
       if (src.indexOf(':') > 0) { var c2 = find(src.split(':')[0]); if (!c2) return noSuch(src.split(':')[0]); var fn = src.split('/').pop(); S.files[fn] = '(copied from ' + c2.name + ')'; return true; }
@@ -1126,6 +1231,52 @@ var NETWSIM = (function () {
       if (sub === 'rm') { if (!S.nets[name]) return err('Error: unable to find network with name or ID ' + name + ': network not found'); if (name === 'podman') return err('Error: default network podman cannot be removed'); var u = S.ctrs.filter(function (c) { return c.network === name; }); if (u.length) return err('Error: "' + name + '" has associated containers with it. Use -f to forcibly delete containers and pods: network is being used'); delete S.nets[name]; print(name); return true; }
       if (sub === 'inspect') { if (!S.nets[name]) return err('Error: network ' + name + ': unable to find network configuration'); print('[ { "name": "' + name + '", "driver": "bridge", "subnets": [ { "subnet": "' + S.nets[name].subnet + '.0/24" } ], "dns_enabled": ' + S.nets[name].dns + ', … } ]'); return true; }
       return err('Error: unrecognized command `podman network ' + (sub || '') + '`   [simulator] supported: ls, create, rm, inspect');
+    };
+    P.unshare = function (args) {
+      if (!args.length) { note('podman unshare with no command opens a shell inside your user namespace, where you appear as root. The simulator runs single commands: podman unshare chown 1001:1001 DIR'); return true; }
+      if (args[0] === 'cat' && args[1] === '/proc/self/uid_map') { print('         0       1000          1'); print('         1     100000      65536'); return true; }
+      if (args[0] === 'id') { print('uid=0(root) gid=0(root) groups=0(root)'); return true; }
+      if (args[0] === 'chown') {
+        var ca = args.slice(1).filter(function (x) { return x[0] !== '-'; });
+        if (ca.length < 2) return err('chown: missing operand');
+        var u = Number(ca[0].split(':')[0]); if (isNaN(u)) return err('chown: invalid user: \'' + ca[0] + '\'');
+        var d = S.dirs[dirName(ca[1])]; if (!d) return err('chown: cannot access \'' + ca[1] + '\': No such file or directory');
+        if (u > 65536) return err('chown: changing ownership of \'' + ca[1] + '\': Invalid argument   [simulator] inside the namespace only UIDs 0 to 65536 exist');
+        d.owner = u; return true;
+      }
+      if (args[0] === 'ls') return exec(args.join(' '));
+      return err('[simulator] supported here: podman unshare chown UID:GID DIR, podman unshare cat /proc/self/uid_map, podman unshare id');
+    };
+    P.volume = function (args) {
+      var sub = args[0], rest = args.slice(1), force = rest.indexOf('-f') > -1 || rest.indexOf('--force') > -1, names = rest.filter(function (x) { return x[0] !== '-'; });
+      function users(n) { return S.ctrs.filter(function (c) { return c.mounts.some(function (m) { return m.type === 'volume' && m.src === n; }); }); }
+      if (sub === 'create') { var n = names[0] || hex(64); if (S.vols[n]) return err('Error: volume with name ' + n + ' already exists: volume already exists'); S.vols[n] = { files: {}, created: new Date().toISOString() }; print(n); return true; }
+      if (sub === 'ls' || sub === 'list') { print(pad('DRIVER', 12) + 'VOLUME NAME'); Object.keys(S.vols).forEach(function (v) { print(pad('local', 12) + v); }); return true; }
+      if (sub === 'inspect') {
+        var v = S.vols[names[0]]; if (!v) return err('Error: inspecting object: no such volume ' + (names[0] || ''));
+        var mp = '/home/student/.local/share/containers/storage/volumes/' + names[0] + '/_data';
+        var fi = rest.indexOf('--format'); if (fi > -1) { var f = rest[fi + 1] || ''; if (/Mountpoint/.test(f)) { print(mp); return true; } if (/Name/.test(f)) { print(names[0]); return true; } return err('Error: template: [simulator] try {{.Mountpoint}}'); }
+        ['[', '     {', '          "Name": "' + names[0] + '",', '          "Driver": "local",', '          "Mountpoint": "' + mp + '",', '          "CreatedAt": "' + v.created + '",', '          "Labels": {},', '          "Scope": "local",', '          "Options": {},', '          "MountCount": ' + users(names[0]).filter(function (c) { return c.state === 'running'; }).length + ',', '     }', ']'].forEach(function (l) { print(l); });
+        return true;
+      }
+      if (sub === 'rm') {
+        if (!names.length) return err('Error: [simulator] name the volume to remove');
+        var ok = true;
+        names.forEach(function (n) {
+          if (!S.vols[n]) { ok = err('Error: no volume with name "' + n + '" found: no such volume'); return; }
+          var u = users(n);
+          if (u.length && !force) { ok = err('Error: volume ' + n + ' is being used by the following container(s): ' + u.map(function (c) { return c.id; }).join(', ') + ': volume is being used'); return; }
+          u.forEach(function (c) { S.ctrs.splice(S.ctrs.indexOf(c), 1); });
+          delete S.vols[n]; S.flags['volrm:' + n] = true; print(n);
+        });
+        return ok;
+      }
+      if (sub === 'prune') {
+        if (!force) { print('WARNING! This will remove all volumes not used by at least one container. The following volumes will be removed:'); Object.keys(S.vols).filter(function (n) { return !users(n).length; }).forEach(function (n) { print(n); }); note('A real terminal now asks "Are you sure you want to continue? [y/N]". Run podman volume prune -f to skip the question.'); return true; }
+        Object.keys(S.vols).filter(function (n) { return !users(n).length; }).forEach(function (n) { delete S.vols[n]; S.flags['volrm:' + n] = true; print(n); });
+        return true;
+      }
+      return err('Error: unrecognized command `podman volume ' + (sub || '') + '`   [simulator] supported: create, ls, inspect, rm, prune');
     };
     P.version = function () { print('Client:       Podman Engine'); print('Version:      4.9.4-rhel'); print('API Version:  4.9.4-rhel'); print('Go Version:   go1.21.9 (Red Hat 1.21.9-2.el9_4)'); print('OS/Arch:      linux/amd64'); return true; };
     P.login = function (args) {
@@ -1276,6 +1427,8 @@ var NETWSIM = (function () {
         '  podman logs [-f] [--tail N] | exec [-it] NAME CMD | inspect [--format \'{{...}}\'] | port | cp',
         '  podman pull | images [--digests] | rmi | tag | push | history | save -o | load -i | image prune [-a]',
         '  podman login | logout | network ls|create|rm|inspect | version',
+        '  podman volume create|ls|inspect|rm|prune   run -v NAME:/path  -v ./dir:/path[:Z|:z|:U|:ro]   podman unshare chown UID:GID DIR',
+        '  host: ls [-ldZ DIR]  mkdir DIR  echo TEXT > DIR/FILE  cat DIR/FILE',
         '  skopeo inspect [--format \'{{.Digest}}\'] docker://IMAGE | skopeo list-tags docker://REPO | skopeo copy docker://SRC docker://DEST',
         '  curl http://localhost:PORT     ls     cat index.html     clear     help',
         'Images: ' + Object.keys(IMG).join(', ')].forEach(function (l) { print(l, 'note'); });
@@ -1288,7 +1441,25 @@ var NETWSIM = (function () {
       if (t[0] === 'help') { help(); return null; }
       if (t[0] === 'docker') { note('Close, but this is Podman. The commands are the same: replace docker with podman.'); return false; }
       if (t[0] === 'curl') { var u = t.slice(1).filter(function (x) { return x[0] !== '-'; })[0]; if (!u) return err('curl: try \'curl --help\' for more information'); var r = curl('host', u); show(r); return !r.err; }
-      if (t[0] === 'ls') { print(Object.keys(S.files).join('  ')); return true; }
+      var hostRd = line.trim().match(/^echo\s+([\s\S]*?)\s*(>>?)\s*(\S+)$/);
+      if (hostRd) {
+        var hp = dirName(hostRd[3]), hparts = hp.split('/'), htxt = hostRd[1].replace(/^(["'])([\s\S]*)\1$/, '$2');
+        if (hparts.length === 1) { S.files[hp] = hostRd[2] === '>>' && S.files[hp] != null ? S.files[hp] + '\n' + htxt : htxt; return true; }
+        var hd = S.dirs[hparts[0]]; if (!hd) return err('bash: ' + hostRd[3] + ': No such file or directory');
+        if (hd.owner !== 0) return err('bash: ' + hostRd[3] + ': Permission denied   [simulator] the directory is now owned by a UID from your subordinate range; use podman unshare to work in it');
+        hd.files[hparts.slice(1).join('/')] = htxt; return true;
+      }
+      if (t[0] === 'mkdir') { var mk = t.filter(function (x) { return x[0] !== '-'; })[1]; if (!mk) return err('mkdir: missing operand'); mk = dirName(mk); if (S.dirs[mk]) return err('mkdir: cannot create directory \'' + mk + '\': File exists'); S.dirs[mk] = { owner: 0, label: 'user_home_t', files: {} }; return true; }
+      if (t[0] === 'ls') {
+        var lopts = t.filter(function (x) { return x[0] === '-'; }).join(''), larg = t.filter(function (x, i) { return i > 0 && x[0] !== '-'; })[0];
+        if (!larg) { print(Object.keys(S.files).concat(Object.keys(S.dirs).map(function (d) { return d + '/'; })).join('  ')); return true; }
+        var ldn = dirName(larg), dd = S.dirs[ldn];
+        if (!dd) return err('ls: cannot access \'' + larg + '\': No such file or directory');
+        if (/d/.test(lopts)) { print('drwxr-xr-x. 2 ' + pad(hostUid(dd.owner), 7) + ' ' + pad(dd.owner === 0 ? 'student' : String(100000 + dd.owner - 1), 7) + ' ' + (/Z/.test(lopts) ? labelText(dd) + ' ' : '') + '  24 Oct  8 09:14 ' + ldn); return true; }
+        if (dd.owner !== 0) return err('ls: cannot open directory \'' + larg + '\': Permission denied');
+        print(Object.keys(dd.files).join('  ')); return true;
+      }
+      if (t[0] === 'cat' && t[1] && t[1].indexOf('/') > -1) { var cp2 = dirName(t[1]).split('/'), cd = S.dirs[cp2[0]], cf = cd && cd.files[cp2.slice(1).join('/')]; if (cd && cd.owner !== 0) return err('cat: ' + t[1] + ': Permission denied'); if (cf != null) { print(cf); return true; } return err('cat: ' + t[1] + ': No such file or directory'); }
       if (t[0] === 'cat') { if (S.files[t[1]] != null) { print(S.files[t[1]]); return true; } return err('cat: ' + (t[1] || '') + ': No such file or directory'); }
       if (t[0] === 'whoami') { print('student'); return true; }
       if (t[0] === 'hostname') { print('workstation.lab.example.com'); return true; }
@@ -1302,7 +1473,7 @@ var NETWSIM = (function () {
     }
   
     /* missions */
-    var api = { S: function () { return S; }, find: find };
+    var api = { S: function () { return S; }, find: find, read: function (c, p) { return readFile(c, p); } };
     var M = cfg.missions(api);
     NETW.state.sim = NETW.state.sim || {};
     var mList = document.getElementById('missions'), mCount = document.getElementById('m-count');

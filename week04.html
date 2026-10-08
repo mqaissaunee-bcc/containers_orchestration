@@ -165,6 +165,9 @@ td code{font-family:var(--mono);font-size:.86rem}
 .site-foot .inner{max-width:76rem;margin:0 auto;padding:var(--s5) var(--s4)}
 .site-foot p{margin:0 0 var(--s2);max-width:80ch}
 @media print{.toc,.topbar,.copy-btn,.done-row{display:none}.layout{display:block}.cmd{white-space:pre-wrap}}
+/* beyond red hat */
+.unit.beyond>h2::after{content:"";flex:1;height:2px;margin-left:var(--s3);align-self:center;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
+.eco-tag{display:inline-block;font:600 .78rem var(--sans);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.1rem .55rem;margin-bottom:var(--s3)}
 
 .wb{display:grid;grid-template-columns:1fr;gap:var(--s4)}
 .wb>*{min-width:0}
@@ -212,7 +215,7 @@ td code{font-family:var(--mono);font-size:.86rem}
 <header>
   <div class="topbar"><div class="topbar-inner">
     <a class="brand" href="index.html"><span class="brand-code">NETW 112</span> Course home</a>
-    <nav class="weeknav" aria-label="Week navigation"><a href="week03.html">Previous: Week 3</a><span>Week 5 coming soon</span></nav>
+    <nav class="weeknav" aria-label="Week navigation"><a href="week03.html">Previous: Week 3</a><a href="week05.html">Next: Week 5, persisting data</a></nav>
   </div></div>
   <div class="masthead">
     <p class="weekno">Week 4</p>
@@ -243,6 +246,7 @@ td code{font-family:var(--mono);font-size:.86rem}
         <li><a href="#anywhere">Images that run anywhere</a></li>
         <li><a href="#small">Keeping images small</a></li>
         <li><a href="#workbench">Containerfile workbench</a></li>
+        <li><a href="#beyond">Beyond Red Hat</a></li>
         <li><a href="#check">Knowledge check</a></li>
         <li><a href="#lab">Lab bridge</a></li>
         <li><a href="#cheat">Cheat sheet</a></li>
@@ -432,14 +436,38 @@ ENTRYPOINT ["/usr/local/bin/hello"]</span></pre>
     </div>
   </section>
 
+  <section class="unit beyond" id="beyond" data-unit>
+    <h2><span class="n">9</span>Beyond Red Hat</h2>
+    <p class="eco-tag">Building images elsewhere</p>
+    <div class="prose">
+      <p><strong>Dockerfile and Containerfile are the same format.</strong> <code>podman build</code> accepts either name, and <code>docker build</code> will build a Containerfile if you pass <code>-f Containerfile</code>. Everything in this chapter applies to both.</p>
+      <h3>Docker BuildKit</h3>
+      <p>Docker's builder, BuildKit, is the default in current Docker Engine releases. Two of its features are worth knowing, and Podman and Buildah support both:</p>
+      <ul>
+        <li><strong>Multi-platform builds.</strong> <code>docker buildx build --platform linux/amd64,linux/arm64</code> builds one image for Intel and ARM machines, published as a manifest list. The Podman equivalent is <code>podman build --platform … --manifest NAME</code>.</li>
+        <li><strong>Cache mounts.</strong> <code>RUN --mount=type=cache,target=/root/.cache/pip pip install …</code> reuses a download cache between builds without storing it in a layer.</li>
+      </ul>
+      <h3>Other base images</h3>
+      <ul>
+        <li><strong>Alpine Linux</strong>: tiny (a few megabytes), but it uses the musl C library instead of glibc, which occasionally breaks software built for glibc.</li>
+        <li><strong>Debian slim</strong> and <strong>Ubuntu</strong>: familiar package managers, moderate size.</li>
+        <li><strong>Distroless</strong> (Google) and <strong>Chainguard</strong> images: no shell or package manager at all, like UBI micro, designed to minimize attack surface.</li>
+      </ul>
+      <h3>Building without a Containerfile</h3>
+      <p><strong>Cloud Native Buildpacks</strong> (the <code>pack</code> tool) and OpenShift's <strong>Source-to-Image (S2I)</strong> detect your application's language and produce an image straight from source code. You'll see S2I builds on OpenShift later in the course.</p>
+      <h3>Linting</h3>
+      <p><strong>hadolint</strong> is a popular open source Dockerfile linter that checks many of the same rules as this week's workbench review. Add it to your build pipeline.</p>
+    </div>
+  </section>
+
   <section class="unit" id="check" data-unit>
-    <h2><span class="n">9</span>Knowledge check</h2>
+    <h2><span class="n">10</span>Knowledge check</h2>
     <p class="hint">Eight questions, answer order shuffled each time. Practice only; not graded.</p>
     <div id="quiz"></div>
   </section>
 
   <section class="unit" id="lab" data-unit>
-    <h2><span class="n">10</span>Lab bridge</h2>
+    <h2><span class="n">11</span>Lab bridge</h2>
     <div class="bridge">
       <h3>Your graded lab: DO188 Chapter 4 in the OLE</h3>
       <p class="prose">Complete the Chapter 4 guided exercises, then the end-of-chapter lab. It is graded on completion and correctness.</p>
@@ -461,7 +489,7 @@ ENTRYPOINT ["/usr/local/bin/hello"]</span></pre>
   </section>
 
   <section class="unit" id="cheat" data-unit>
-    <h2><span class="n">11</span>Cheat sheet</h2>
+    <h2><span class="n">12</span>Cheat sheet</h2>
     <div class="table-wrap"><table>
       <caption class="vh">Image building command reference</caption>
       <thead><tr><th scope="col">Task</th><th scope="col">Command or instruction</th></tr></thead>
