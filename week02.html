@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Week 2: Podman Basics | NETW 112 Containers &amp; Orchestration</title><meta name="description" content="NETW 112 Week 2. Run, inspect, network and clean up containers with Podman, with a practice terminal and missions that mirror the Chapter 2 lab skills.">
 <style>:root{
   --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#E9EEF1; --ink:#17212B; --muted:#4A5866;
-  --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0;
+  --line:#CCD5DC; --accent:#0B6870; --accent-strong:#084E55; --accent-ink:#FFFFFF; --accent-soft:#DDEFF0; --accent-on-ink:#6BD0D4;
   --signal:#7E4C00; --signal-bg:#FFF3DC; --signal-line:#D9A24A;
   --ok:#1C6A39; --ok-bg:#E3F4E8; --bad:#A1252A; --bad-bg:#FBE6E6;
   --term-bg:#0F161D; --term-fg:#D3DFE7; --term-dim:#8FA3B1; --term-prompt:#7FD3C9; --term-err:#FF9C9C; --term-ok:#A8E6B5;
@@ -15,7 +15,7 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#0E141A; --surface:#151E27; --surface-2:#1C2833; --ink:#E2E9EF; --muted:#A3B2BF;
-    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A;
+    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A; --accent-on-ink:#0A5A62;
     --signal:#F0B65C; --signal-bg:#2A2214; --signal-line:#8A6526;
     --ok:#74D19B; --ok-bg:#15301F; --bad:#F2898C; --bad-bg:#3A1C1E;
     --term-bg:#080C10; --steel-a:#273440; --steel-b:#22303B;
@@ -23,7 +23,7 @@
 }
 :root[data-theme="dark"]{
     --bg:#0E141A; --surface:#151E27; --surface-2:#1C2833; --ink:#E2E9EF; --muted:#A3B2BF;
-    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A;
+    --line:#2C3A47; --accent:#5EC3C7; --accent-strong:#8AD8DA; --accent-ink:#0E141A; --accent-soft:#16343A; --accent-on-ink:#0A5A62;
     --signal:#F0B65C; --signal-bg:#2A2214; --signal-line:#8A6526;
     --ok:#74D19B; --ok-bg:#15301F; --bad:#F2898C; --bad-bg:#3A1C1E;
     --term-bg:#080C10; --steel-a:#273440; --steel-b:#22303B;
@@ -188,7 +188,7 @@ td code{font-family:var(--mono);font-size:.86rem}
 .gloss:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
 #gloss-tip{position:absolute;left:0;top:0;transform:translateX(-9999px);z-index:200;max-width:min(20rem,calc(100vw - 1rem));background:var(--ink);color:var(--bg);font-family:var(--sans);font-size:.85rem;line-height:1.45;padding:var(--s2) var(--s3);border-radius:var(--radius-sm);box-shadow:0 6px 18px rgba(0,0,0,.28);pointer-events:none;opacity:0;transition:opacity .12s}
 #gloss-tip.on{opacity:1;transform:none}
-#gloss-tip b{display:block;font-size:.8rem;color:var(--accent-strong);margin-bottom:.1rem}
+#gloss-tip b{display:block;font-size:.82rem;font-weight:700;letter-spacing:.01em;color:var(--accent-on-ink);margin-bottom:.2rem}
 @media (prefers-reduced-motion:reduce){#gloss-tip{transition:none}}
 
 /* lifecycle */
